@@ -73,56 +73,60 @@ function StatsTable({ players, teamName, isHome }: { players: PlayerStatRecord[]
     { points: 0, fg_made: 0, fg_attempted: 0, three_made: 0, three_attempted: 0, ft_made: 0, ft_attempted: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, fouls: 0 }
   )
 
+  const thClass = 'py-2 px-3 font-semibold text-[10px] tracking-wider uppercase'
+
   return (
-    <div className="bg-navy-light border border-white/10 rounded-xl overflow-hidden">
-      <div className={`px-4 py-3 border-b border-white/10 ${isHome ? 'bg-gold/10' : 'bg-white/5'}`}>
-        <h3 className={`font-bold text-sm ${isHome ? 'text-gold' : 'text-white'}`}>{teamName}</h3>
+    <div className="rounded-2xl bg-gradient-to-b from-[#0d2847] to-navy-light border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] overflow-hidden">
+      <div className={`px-5 py-3 flex items-center gap-2.5 ${isHome ? 'bg-gold/[0.06]' : 'bg-white/[0.02]'}`}>
+        <div className={`w-1 h-5 rounded-full ${isHome ? 'bg-gold' : 'bg-white/20'}`} />
+        <h3 className={`font-bold text-sm tracking-wide ${isHome ? 'text-gold' : 'text-white/90'}`}>{teamName}</h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs sm:text-sm">
+        <table className="w-full text-xs">
           <thead>
-            <tr className="text-white/40 border-b border-white/5">
-              <th className="py-2 px-2 text-left font-medium">#</th>
-              <th className="py-2 px-2 text-left font-medium">球員</th>
-              <th className="py-2 px-2 font-medium text-white/30">時間</th>
-              <th className="py-2 px-2 font-medium text-gold">得分</th>
-              <th className="py-2 px-2 font-medium">二分</th>
-              <th className="py-2 px-2 font-medium">三分</th>
-              <th className="py-2 px-2 font-medium">罰球</th>
-              <th className="py-2 px-2 font-medium">籃板</th>
-              <th className="py-2 px-2 font-medium">助攻</th>
-              <th className="py-2 px-2 font-medium">抄截</th>
-              <th className="py-2 px-2 font-medium">阻攻</th>
-              <th className="py-2 px-2 font-medium">失誤</th>
-              <th className="py-2 px-2 font-medium">犯規</th>
-              <th className="py-2 px-2 font-medium">+/-</th>
+            <tr className="text-white/25 border-b border-white/[0.06]">
+              <th className={`${thClass} text-left`}>#</th>
+              <th className={`${thClass} text-left`}>球員</th>
+              <th className={`${thClass} text-white/20`}>MIN</th>
+              <th className={`${thClass} text-gold/60`}>PTS</th>
+              <th className={thClass}>2PT</th>
+              <th className={thClass}>3PT</th>
+              <th className={thClass}>FT</th>
+              <th className={thClass}>REB</th>
+              <th className={thClass}>AST</th>
+              <th className={thClass}>STL</th>
+              <th className={thClass}>BLK</th>
+              <th className={thClass}>TO</th>
+              <th className={thClass}>PF</th>
+              <th className={thClass}>+/-</th>
             </tr>
           </thead>
           <tbody>
             {players.map((p) => {
               const pm = p.plus_minus
+              const pmColor = pm > 0 ? 'text-emerald-400' : pm < 0 ? 'text-red-400' : 'text-white/15'
               return (
-                <tr key={p.id} className="border-b border-white/5 text-white/80">
-                  <td className="py-2 px-2 font-mono font-bold">{p.player_number}</td>
-                  <td className="py-2 px-2 font-medium whitespace-nowrap">{p.player_name}</td>
-                  <td className="py-2 px-2 text-center tabular-nums text-white/50">{fmtTime(p.playing_seconds)}</td>
-                  <td className="py-2 px-2 text-center font-bold text-gold tabular-nums">{p.points}</td>
-                  <td className="py-2 px-2 text-center tabular-nums whitespace-nowrap">
-                    {p.fg_made}/{p.fg_attempted} <span className="text-white/30">{pct(p.fg_made, p.fg_attempted)}</span>
+                <tr key={p.id} className="border-b border-white/[0.04] text-white/70 hover:bg-white/[0.02] transition-colors">
+                  <td className="py-2.5 px-3 font-mono font-black text-xs">{p.player_number}</td>
+                  <td className="py-2.5 px-3 font-semibold whitespace-nowrap text-xs">{p.player_name}</td>
+                  <td className="py-2.5 px-3 text-center tabular-nums text-white/30 text-[11px]">{fmtTime(p.playing_seconds)}</td>
+                  <td className="py-2.5 px-3 text-center font-black text-gold tabular-nums">{p.points}</td>
+                  <td className="py-2.5 px-3 text-center tabular-nums whitespace-nowrap text-[11px]">
+                    {p.fg_made}/{p.fg_attempted} <span className="text-white/20">{pct(p.fg_made, p.fg_attempted)}</span>
                   </td>
-                  <td className="py-2 px-2 text-center tabular-nums whitespace-nowrap">
-                    {p.three_made}/{p.three_attempted} <span className="text-white/30">{pct(p.three_made, p.three_attempted)}</span>
+                  <td className="py-2.5 px-3 text-center tabular-nums whitespace-nowrap text-[11px]">
+                    {p.three_made}/{p.three_attempted} <span className="text-white/20">{pct(p.three_made, p.three_attempted)}</span>
                   </td>
-                  <td className="py-2 px-2 text-center tabular-nums whitespace-nowrap">
-                    {p.ft_made}/{p.ft_attempted} <span className="text-white/30">{pct(p.ft_made, p.ft_attempted)}</span>
+                  <td className="py-2.5 px-3 text-center tabular-nums whitespace-nowrap text-[11px]">
+                    {p.ft_made}/{p.ft_attempted} <span className="text-white/20">{pct(p.ft_made, p.ft_attempted)}</span>
                   </td>
-                  <td className="py-2 px-2 text-center tabular-nums">{p.off_rebounds + p.def_rebounds}</td>
-                  <td className="py-2 px-2 text-center tabular-nums">{p.assists}</td>
-                  <td className="py-2 px-2 text-center tabular-nums">{p.steals}</td>
-                  <td className="py-2 px-2 text-center tabular-nums">{p.blocks}</td>
-                  <td className="py-2 px-2 text-center tabular-nums">{p.turnovers}</td>
-                  <td className={`py-2 px-2 text-center tabular-nums font-bold ${p.fouls >= 4 ? 'text-red-400' : ''}`}>{p.fouls}</td>
-                  <td className={`py-2 px-2 text-center tabular-nums font-bold ${pm > 0 ? 'text-green-400' : pm < 0 ? 'text-red-400' : 'text-white/30'}`}>
+                  <td className="py-2.5 px-3 text-center tabular-nums">{p.off_rebounds + p.def_rebounds}</td>
+                  <td className="py-2.5 px-3 text-center tabular-nums">{p.assists}</td>
+                  <td className="py-2.5 px-3 text-center tabular-nums">{p.steals}</td>
+                  <td className="py-2.5 px-3 text-center tabular-nums">{p.blocks}</td>
+                  <td className="py-2.5 px-3 text-center tabular-nums">{p.turnovers}</td>
+                  <td className={`py-2.5 px-3 text-center tabular-nums font-bold ${p.fouls >= 4 ? 'text-red-400' : ''}`}>{p.fouls}</td>
+                  <td className={`py-2.5 px-3 text-center tabular-nums font-bold text-xs ${pmColor}`}>
                     {pm > 0 ? `+${pm}` : pm}
                   </td>
                 </tr>
@@ -130,19 +134,19 @@ function StatsTable({ players, teamName, isHome }: { players: PlayerStatRecord[]
             })}
           </tbody>
           <tfoot>
-            <tr className="text-white font-bold border-t border-white/20 bg-white/5">
-              <td className="py-2 px-2" colSpan={3}>合計</td>
-              <td className="py-2 px-2 text-center text-gold tabular-nums">{totals.points}</td>
-              <td className="py-2 px-2 text-center tabular-nums">{totals.fg_made}/{totals.fg_attempted}</td>
-              <td className="py-2 px-2 text-center tabular-nums">{totals.three_made}/{totals.three_attempted}</td>
-              <td className="py-2 px-2 text-center tabular-nums">{totals.ft_made}/{totals.ft_attempted}</td>
-              <td className="py-2 px-2 text-center tabular-nums">{totals.rebounds}</td>
-              <td className="py-2 px-2 text-center tabular-nums">{totals.assists}</td>
-              <td className="py-2 px-2 text-center tabular-nums">{totals.steals}</td>
-              <td className="py-2 px-2 text-center tabular-nums">{totals.blocks}</td>
-              <td className="py-2 px-2 text-center tabular-nums">{totals.turnovers}</td>
-              <td className="py-2 px-2 text-center tabular-nums">{totals.fouls}</td>
-              <td className="py-2 px-2"></td>
+            <tr className="text-white/80 font-bold border-t border-white/[0.08] bg-white/[0.03]">
+              <td className="py-2.5 px-3 text-[10px] tracking-widest uppercase text-white/30" colSpan={3}>Total</td>
+              <td className="py-2.5 px-3 text-center text-gold tabular-nums">{totals.points}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums text-[11px]">{totals.fg_made}/{totals.fg_attempted}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums text-[11px]">{totals.three_made}/{totals.three_attempted}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums text-[11px]">{totals.ft_made}/{totals.ft_attempted}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums">{totals.rebounds}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums">{totals.assists}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums">{totals.steals}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums">{totals.blocks}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums">{totals.turnovers}</td>
+              <td className="py-2.5 px-3 text-center tabular-nums">{totals.fouls}</td>
+              <td className="py-2.5 px-3"></td>
             </tr>
           </tfoot>
         </table>
@@ -173,16 +177,19 @@ export default function GameDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-navy flex items-center justify-center">
-        <p className="text-white/30">載入中...</p>
+      <div className="min-h-screen bg-[#060f1d] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-gold/30 border-t-gold rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-white/20 text-sm">載入中...</p>
+        </div>
       </div>
     )
   }
 
   if (!game) {
     return (
-      <div className="min-h-screen bg-navy flex items-center justify-center">
-        <p className="text-white/30">找不到比賽紀錄</p>
+      <div className="min-h-screen bg-[#060f1d] flex items-center justify-center">
+        <p className="text-white/20 text-sm">找不到比賽紀錄</p>
       </div>
     )
   }
@@ -192,83 +199,110 @@ export default function GameDetailPage() {
   const homeWin = game.home_score > game.away_score
 
   return (
-    <div className="min-h-screen bg-navy">
-      <header className="bg-navy-light border-b border-white/10 px-4 py-3">
+    <div className="min-h-screen bg-[#060f1d]">
+      <header className="bg-gradient-to-r from-navy-light via-[#0d2847] to-navy-light border-b border-white/[0.06] px-4 py-3">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-gold font-bold text-lg tracking-wider">
+            <Link href="/" className="text-gold font-black text-lg tracking-widest">
               EMPOWER
             </Link>
-            <span className="text-white/20">|</span>
-            <span className="text-white/50 text-sm font-medium">比賽數據</span>
+            <div className="w-px h-4 bg-white/10" />
+            <span className="text-white/40 text-xs font-semibold tracking-wider uppercase">比賽數據</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/scoreboard/history" className="text-white/40 hover:text-white text-xs transition-colors">
+            <Link href="/scoreboard/history" className="px-3 py-1.5 rounded-full text-xs bg-white/[0.04] hover:bg-white/[0.08] text-white/40 hover:text-white/70 border border-white/[0.06] transition-all">
               歷史紀錄
             </Link>
-            <Link href="/scoreboard" className="text-white/40 hover:text-white text-xs transition-colors">
-              返回紀錄台
+            <Link href="/scoreboard" className="px-3 py-1.5 rounded-full text-xs bg-white/[0.04] hover:bg-white/[0.08] text-white/40 hover:text-white/70 border border-white/[0.06] transition-all">
+              紀錄台
             </Link>
           </div>
         </div>
       </header>
 
-      <div className="max-w-[1400px] mx-auto p-4 space-y-4">
+      <div className="max-w-[1400px] mx-auto p-4 sm:p-6 space-y-5">
         {/* Game Summary */}
-        <div className="bg-navy-light border border-white/10 rounded-xl p-6">
-          <div className="text-center mb-4">
-            <p className="text-white/30 text-xs mb-1">
-              {game.game_date} {game.game_time ?? ''} {game.location ? `@ ${game.location}` : ''}
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-8">
-            <div className="text-center">
-              <p className={`font-bold text-sm mb-1 ${homeWin ? 'text-gold' : 'text-white/60'}`}>
-                {game.home_squad_name}
-              </p>
-              <p className={`text-5xl font-black tabular-nums ${homeWin ? 'text-gold' : 'text-white/60'}`}>
-                {game.home_score}
-              </p>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#0d2847] to-navy-light border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-gold/5 blur-3xl rounded-full pointer-events-none" />
+
+          <div className="relative px-6 pt-8 pb-6">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 text-white/20 text-[11px] tabular-nums">
+                <span>{game.game_date}</span>
+                {game.game_time && (
+                  <>
+                    <div className="w-px h-3 bg-white/10" />
+                    <span>{game.game_time}</span>
+                  </>
+                )}
+                {game.location && (
+                  <>
+                    <div className="w-px h-3 bg-white/10" />
+                    <span>{game.location}</span>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-white/20 text-lg font-bold">VS</p>
-            </div>
-            <div className="text-center">
-              <p className={`font-bold text-sm mb-1 ${!homeWin ? 'text-gold' : 'text-white/60'}`}>
-                {game.away_squad_name}
-              </p>
-              <p className={`text-5xl font-black tabular-nums ${!homeWin ? 'text-gold' : 'text-white/60'}`}>
-                {game.away_score}
-              </p>
+
+            <div className="flex items-center justify-center gap-8 sm:gap-12">
+              <div className="text-center">
+                <div className={`inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full ${homeWin ? 'bg-gold/10 border border-gold/20' : 'bg-white/[0.04] border border-white/[0.06]'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${homeWin ? 'bg-gold' : 'bg-white/20'}`} />
+                  <span className={`font-semibold text-xs tracking-widest uppercase ${homeWin ? 'text-gold' : 'text-white/40'}`}>
+                    {game.home_squad_name}
+                  </span>
+                  {homeWin && <span className="text-gold/60 text-[10px] font-bold">W</span>}
+                </div>
+                <p className={`text-6xl sm:text-7xl font-black tabular-nums tracking-tight leading-none ${homeWin ? 'text-gold' : 'text-white/40'}`}>
+                  {game.home_score}
+                </p>
+              </div>
+
+              <div className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <span className="text-white/15 text-[10px] font-black tracking-[0.3em]">FINAL</span>
+              </div>
+
+              <div className="text-center">
+                <div className={`inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full ${!homeWin ? 'bg-gold/10 border border-gold/20' : 'bg-white/[0.04] border border-white/[0.06]'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${!homeWin ? 'bg-gold' : 'bg-white/20'}`} />
+                  <span className={`font-semibold text-xs tracking-widest uppercase ${!homeWin ? 'text-gold' : 'text-white/40'}`}>
+                    {game.away_squad_name}
+                  </span>
+                  {!homeWin && <span className="text-gold/60 text-[10px] font-bold">W</span>}
+                </div>
+                <p className={`text-6xl sm:text-7xl font-black tabular-nums tracking-tight leading-none ${!homeWin ? 'text-gold' : 'text-white/40'}`}>
+                  {game.away_score}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Quarter scores */}
-          <div className="mt-4 overflow-x-auto">
+          {/* Quarter scores bar */}
+          <div className="border-t border-white/[0.06] bg-white/[0.02] px-6 py-3">
             <table className="mx-auto text-center text-sm">
               <thead>
-                <tr className="text-white/40 text-xs">
-                  <th className="py-1 px-3 text-left font-medium">隊伍</th>
+                <tr className="text-white/20 text-[10px] tracking-widest uppercase">
+                  <th className="py-1 px-4 text-left font-medium">隊伍</th>
                   {game.quarter_scores_home.map((_, i) => (
-                    <th key={i} className="py-1 px-3 font-medium">Q{i + 1}</th>
+                    <th key={i} className="py-1 px-4 font-medium">Q{i + 1}</th>
                   ))}
-                  <th className="py-1 px-3 font-bold text-white/60">合計</th>
+                  <th className="py-1 px-4 font-bold text-white/40">Total</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="text-white">
-                  <td className="py-1 px-3 text-left text-gold font-medium">{game.home_squad_name}</td>
-                  {game.quarter_scores_home.map((s, i) => (
-                    <td key={i} className="py-1 px-3 tabular-nums">{s}</td>
-                  ))}
-                  <td className="py-1 px-3 font-bold tabular-nums">{game.home_score}</td>
-                </tr>
                 <tr className="text-white/80">
-                  <td className="py-1 px-3 text-left font-medium">{game.away_squad_name}</td>
-                  {game.quarter_scores_away.map((s, i) => (
-                    <td key={i} className="py-1 px-3 tabular-nums">{s}</td>
+                  <td className="py-1.5 px-4 text-left font-semibold text-gold text-xs">{game.home_squad_name}</td>
+                  {game.quarter_scores_home.map((s, i) => (
+                    <td key={i} className="py-1.5 px-4 tabular-nums text-white/50">{s}</td>
                   ))}
-                  <td className="py-1 px-3 font-bold tabular-nums">{game.away_score}</td>
+                  <td className="py-1.5 px-4 font-black tabular-nums">{game.home_score}</td>
+                </tr>
+                <tr className="text-white/60">
+                  <td className="py-1.5 px-4 text-left font-semibold text-xs">{game.away_squad_name}</td>
+                  {game.quarter_scores_away.map((s, i) => (
+                    <td key={i} className="py-1.5 px-4 tabular-nums text-white/40">{s}</td>
+                  ))}
+                  <td className="py-1.5 px-4 font-black tabular-nums">{game.away_score}</td>
                 </tr>
               </tbody>
             </table>

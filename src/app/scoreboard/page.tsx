@@ -491,28 +491,28 @@ export default function ScoreboardPage() {
   const selectedIsOnCourt = selectedPlayer ? selectedTeam.onCourtIds.includes(selectedPlayer.id) : false
 
   return (
-    <div className="min-h-screen bg-navy">
-      <header className="bg-navy-light border-b border-white/10 px-4 py-3">
+    <div className="min-h-screen bg-[#060f1d]">
+      <header className="bg-gradient-to-r from-navy-light via-[#0d2847] to-navy-light border-b border-white/[0.06] px-4 py-3 backdrop-blur-sm">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-gold font-bold text-lg tracking-wider">
+            <Link href="/" className="text-gold font-black text-lg tracking-widest">
               EMPOWER
             </Link>
-            <span className="text-white/20">|</span>
-            <span className="text-white/50 text-sm font-medium">紀錄台</span>
+            <div className="w-px h-4 bg-white/10" />
+            <span className="text-white/40 text-xs font-semibold tracking-wider uppercase">紀錄台</span>
             {game.gameDate && (
               <>
-                <span className="text-white/20">|</span>
-                <span className="text-white/30 text-xs">
+                <div className="w-px h-4 bg-white/10" />
+                <span className="text-white/25 text-[11px] tabular-nums">
                   {game.gameDate} {game.gameTime}{game.location ? ` @ ${game.location}` : ''}
                 </span>
               </>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Link
               href="/scoreboard/history"
-              className="text-white/30 hover:text-white/60 text-xs transition-colors"
+              className="text-white/25 hover:text-white/50 text-xs transition-colors"
             >
               歷史紀錄
             </Link>
@@ -531,7 +531,7 @@ export default function ScoreboardPage() {
                   setView('setup')
                 }
               }}
-              className="text-white/40 hover:text-white text-xs transition-colors disabled:opacity-50"
+              className="px-4 py-1.5 rounded-full text-xs font-bold bg-gold/10 hover:bg-gold/20 text-gold/70 hover:text-gold border border-gold/10 transition-all disabled:opacity-40"
             >
               {saving ? '儲存中...' : '結束並儲存'}
             </button>
@@ -539,7 +539,7 @@ export default function ScoreboardPage() {
         </div>
       </header>
 
-      <div className="max-w-[1600px] mx-auto p-4 space-y-4">
+      <div className="max-w-[1600px] mx-auto p-4 sm:p-6 space-y-4">
         <ScoreboardHeader
           homeTeam={game.homeTeam}
           awayTeam={game.awayTeam}

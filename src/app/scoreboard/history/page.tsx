@@ -38,34 +38,45 @@ export default function HistoryPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-navy">
-      <header className="bg-navy-light border-b border-white/10 px-4 py-3">
+    <div className="min-h-screen bg-[#060f1d]">
+      <header className="bg-gradient-to-r from-navy-light via-[#0d2847] to-navy-light border-b border-white/[0.06] px-4 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-gold font-bold text-lg tracking-wider">
+            <Link href="/" className="text-gold font-black text-lg tracking-widest">
               EMPOWER
             </Link>
-            <span className="text-white/20">|</span>
-            <span className="text-white/50 text-sm font-medium">歷史紀錄</span>
+            <div className="w-px h-4 bg-white/10" />
+            <span className="text-white/40 text-xs font-semibold tracking-wider uppercase">歷史紀錄</span>
           </div>
           <Link
             href="/scoreboard"
-            className="text-white/40 hover:text-white text-xs transition-colors"
+            className="px-4 py-1.5 rounded-full text-xs font-bold bg-white/[0.04] hover:bg-white/[0.08] text-white/40 hover:text-white/70 border border-white/[0.06] transition-all"
           >
             返回紀錄台
           </Link>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto p-4">
-        <h1 className="text-2xl font-black text-white mb-6">比賽紀錄</h1>
+      <div className="max-w-5xl mx-auto p-4 sm:p-6">
+        <div className="mb-8">
+          <h1 className="text-3xl font-black text-white tracking-tight">比賽紀錄</h1>
+          <p className="text-white/25 text-sm mt-1">{games.length} 場比賽</p>
+        </div>
 
         {loading && (
-          <p className="text-white/30 text-center py-12">載入中...</p>
+          <div className="text-center py-20">
+            <div className="w-8 h-8 border-2 border-gold/30 border-t-gold rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-white/20 text-sm">載入中...</p>
+          </div>
         )}
 
         {!loading && games.length === 0 && (
-          <p className="text-white/30 text-center py-12">尚無比賽紀錄</p>
+          <div className="text-center py-20">
+            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] mx-auto mb-4 flex items-center justify-center">
+              <span className="text-white/10 text-2xl">0</span>
+            </div>
+            <p className="text-white/20 text-sm">尚無比賽紀錄</p>
+          </div>
         )}
 
         <div className="space-y-3">
@@ -76,36 +87,50 @@ export default function HistoryPage() {
               <Link
                 key={g.id}
                 href={`/scoreboard/games/${g.id}`}
-                className="block bg-navy-light border border-white/10 rounded-xl p-4 hover:border-gold/30 transition-colors"
+                className="group block rounded-2xl bg-gradient-to-r from-[#0d2847] to-navy-light border border-white/[0.06] hover:border-gold/20 p-5 transition-all duration-200 hover:shadow-[0_4px_24px_rgba(244,206,33,0.05)]"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className="text-white/30 text-xs">{g.game_date}</span>
-                      {g.game_time && <span className="text-white/20 text-xs">{g.game_time}</span>}
-                      {g.location && <span className="text-white/20 text-xs">@ {g.location}</span>}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-white/25 text-[11px] tabular-nums">{g.game_date}</span>
+                      {g.game_time && (
+                        <>
+                          <div className="w-px h-3 bg-white/10" />
+                          <span className="text-white/15 text-[11px]">{g.game_time}</span>
+                        </>
+                      )}
+                      {g.location && (
+                        <>
+                          <div className="w-px h-3 bg-white/10" />
+                          <span className="text-white/15 text-[11px]">{g.location}</span>
+                        </>
+                      )}
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-bold text-sm ${homeWin ? 'text-gold' : 'text-white/60'}`}>
+                    <div className="flex items-center gap-5">
+                      <div className="flex items-center gap-3">
+                        <span className={`font-bold text-sm ${homeWin ? 'text-gold' : 'text-white/40'}`}>
                           {g.home_squad_name}
                         </span>
-                        <span className={`text-2xl font-black tabular-nums ${homeWin ? 'text-gold' : 'text-white/60'}`}>
+                        <span className={`text-3xl font-black tabular-nums ${homeWin ? 'text-gold' : 'text-white/40'}`}>
                           {g.home_score}
                         </span>
                       </div>
-                      <span className="text-white/20 text-xs">vs</span>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-2xl font-black tabular-nums ${awayWin ? 'text-gold' : 'text-white/60'}`}>
+                      <div className="px-2 py-0.5 rounded bg-white/[0.04]">
+                        <span className="text-white/15 text-[10px] font-bold tracking-widest">VS</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-3xl font-black tabular-nums ${awayWin ? 'text-gold' : 'text-white/40'}`}>
                           {g.away_score}
                         </span>
-                        <span className={`font-bold text-sm ${awayWin ? 'text-gold' : 'text-white/60'}`}>
+                        <span className={`font-bold text-sm ${awayWin ? 'text-gold' : 'text-white/40'}`}>
                           {g.away_squad_name}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <span className="text-white/20 text-xs">查看詳情 →</span>
+                  <span className="text-white/10 group-hover:text-gold/40 text-xs transition-colors">
+                    查看 →
+                  </span>
                 </div>
               </Link>
             )
