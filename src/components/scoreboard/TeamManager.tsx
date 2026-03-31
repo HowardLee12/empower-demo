@@ -44,18 +44,15 @@ export function TeamManager({ onBack }: TeamManagerProps) {
   const orgSquads = squads.filter((s) => s.org_id === selectedOrgId)
   const squadPlayers = players.filter((p) => p.squad_id === selectedSquadId)
 
-  // --- Org CRUD ---
   const saveOrg = async () => {
     if (!editingOrg || !editingOrg.name.trim()) return
     if (editingOrg.id) {
       await supabase.from('sb_organizations').update({
-        name: editingOrg.name,
-        short_name: editingOrg.short_name,
+        name: editingOrg.name, short_name: editingOrg.short_name,
       }).eq('id', editingOrg.id)
     } else {
       await supabase.from('sb_organizations').insert({
-        name: editingOrg.name,
-        short_name: editingOrg.short_name,
+        name: editingOrg.name, short_name: editingOrg.short_name,
       })
     }
     setEditingOrg(null)
@@ -65,27 +62,20 @@ export function TeamManager({ onBack }: TeamManagerProps) {
 
   const deleteOrg = async (id: string) => {
     await supabase.from('sb_organizations').delete().eq('id', id)
-    if (selectedOrgId === id) {
-      setSelectedOrgId(null)
-      setSelectedSquadId(null)
-    }
+    if (selectedOrgId === id) { setSelectedOrgId(null); setSelectedSquadId(null) }
     showToast('已刪除')
     await reload()
   }
 
-  // --- Squad CRUD ---
   const saveSquad = async () => {
     if (!editingSquad || !editingSquad.name.trim() || !editingSquad.org_id) return
     if (editingSquad.id) {
       await supabase.from('sb_squads').update({
-        name: editingSquad.name,
-        age_group: editingSquad.age_group,
+        name: editingSquad.name, age_group: editingSquad.age_group,
       }).eq('id', editingSquad.id)
     } else {
       await supabase.from('sb_squads').insert({
-        org_id: editingSquad.org_id,
-        name: editingSquad.name,
-        age_group: editingSquad.age_group,
+        org_id: editingSquad.org_id, name: editingSquad.name, age_group: editingSquad.age_group,
       })
     }
     setEditingSquad(null)
@@ -100,19 +90,15 @@ export function TeamManager({ onBack }: TeamManagerProps) {
     await reload()
   }
 
-  // --- Player CRUD ---
   const savePlayer = async () => {
     if (!editingPlayer || !editingPlayer.name.trim() || !editingPlayer.squad_id) return
     if (editingPlayer.id) {
       await supabase.from('sb_players').update({
-        number: editingPlayer.number,
-        name: editingPlayer.name,
+        number: editingPlayer.number, name: editingPlayer.name,
       }).eq('id', editingPlayer.id)
     } else {
       await supabase.from('sb_players').insert({
-        squad_id: editingPlayer.squad_id,
-        number: editingPlayer.number,
-        name: editingPlayer.name,
+        squad_id: editingPlayer.squad_id, number: editingPlayer.number, name: editingPlayer.name,
       })
     }
     setEditingPlayer(null)
@@ -126,91 +112,110 @@ export function TeamManager({ onBack }: TeamManagerProps) {
     await reload()
   }
 
-  const inputClass = 'bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-gold/50'
+  const inputClass = 'bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-gold/40 transition-all'
+
+  const renderEditForm = (
+    fields: { placeholder: string; value: string; onChange: (v: string) => void; className?: string }[],
+    onSave: () => void,
+    onCancel: () => void
+  ) => (
+    <div className="p-4 border-b border-white/[0.04] bg-white/[0.02] space-y-3">
+      <div className="flex gap-2">
+        {fields.map((f, i) => (
+          <input
+            key={i}
+            type="text"
+            placeholder={f.placeholder}
+            value={f.value}
+            onChange={(e) => f.onChange(e.target.value)}
+            className={`${inputClass} ${f.className ?? 'flex-1'}`}
+            autoFocus={i === 0}
+          />
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onSave} className="px-4 py-2 rounded-xl text-xs font-bold bg-gold text-navy hover:bg-gold-dark transition-colors">
+          儲存
+        </button>
+        <button onClick={onCancel} className="px-4 py-2 rounded-xl text-xs font-bold bg-white/[0.04] hover:bg-white/[0.08] text-white/40 transition-colors">
+          取消
+        </button>
+      </div>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-navy p-4">
+    <div className="min-h-screen bg-[#060f1d] p-4 sm:p-8">
       {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg font-medium animate-pulse">
+        <div className="fixed top-4 right-4 z-50 bg-emerald-500 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 font-semibold text-sm">
           {toast}
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-black text-white">隊伍管理</h1>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-white tracking-tight">隊伍管理</h1>
+            <p className="text-white/25 text-sm mt-1">管理所有隊伍、小隊與球員名單</p>
+          </div>
           <button
             onClick={onBack}
-            className="text-white/40 hover:text-white text-sm transition-colors"
+            className="px-5 py-2.5 rounded-full text-sm font-bold bg-white/[0.04] hover:bg-white/[0.08] text-white/40 hover:text-white/70 border border-white/[0.06] transition-all"
           >
             返回紀錄台
           </button>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-3 gap-5">
           {/* Column 1: Organizations */}
-          <div className="bg-navy-light border border-white/10 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-gold/10">
-              <h2 className="text-gold font-bold text-sm">隊伍</h2>
+          <div className="rounded-2xl bg-gradient-to-b from-[#0d2847] to-navy-light border border-white/[0.08] overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
+            <div className="px-5 py-4 flex items-center justify-between bg-gold/[0.06]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-1.5 h-6 rounded-full bg-gold" />
+                <h2 className="text-gold font-bold text-sm tracking-wide">隊伍</h2>
+                <span className="text-gold/30 text-xs">({orgs.length})</span>
+              </div>
               <button
                 onClick={() => setEditingOrg({ id: null, name: '', short_name: '' })}
-                className="text-gold text-xs hover:text-gold-dark transition-colors"
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-gold/10 hover:bg-gold/20 text-gold/70 hover:text-gold border border-gold/10 transition-all"
               >
                 + 新增
               </button>
             </div>
 
-            {editingOrg && (
-              <div className="p-3 border-b border-white/10 bg-white/5 space-y-2">
-                <input
-                  type="text"
-                  placeholder="隊伍名稱（如：黑熊隊）"
-                  value={editingOrg.name}
-                  onChange={(e) => setEditingOrg({ ...editingOrg, name: e.target.value })}
-                  className={`${inputClass} w-full`}
-                  autoFocus
-                />
-                <input
-                  type="text"
-                  placeholder="簡稱（如：黑熊）"
-                  value={editingOrg.short_name}
-                  onChange={(e) => setEditingOrg({ ...editingOrg, short_name: e.target.value })}
-                  className={`${inputClass} w-full`}
-                />
-                <div className="flex gap-2">
-                  <button onClick={saveOrg} className="bg-gold text-navy px-3 py-1 rounded text-xs font-bold hover:bg-gold-dark transition-colors">
-                    儲存
-                  </button>
-                  <button onClick={() => setEditingOrg(null)} className="text-white/40 text-xs hover:text-white transition-colors">
-                    取消
-                  </button>
-                </div>
-              </div>
+            {editingOrg && renderEditForm(
+              [
+                { placeholder: '隊伍名稱', value: editingOrg.name, onChange: (v) => setEditingOrg({ ...editingOrg, name: v }) },
+                { placeholder: '簡稱', value: editingOrg.short_name, onChange: (v) => setEditingOrg({ ...editingOrg, short_name: v }), className: 'w-24' },
+              ],
+              saveOrg,
+              () => setEditingOrg(null)
             )}
 
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-white/[0.04]">
               {orgs.map((org) => (
                 <div
                   key={org.id}
                   onClick={() => { setSelectedOrgId(org.id); setSelectedSquadId(null) }}
-                  className={`px-4 py-3 cursor-pointer transition-colors flex items-center justify-between group ${
-                    selectedOrgId === org.id ? 'bg-gold/10 text-gold' : 'text-white/70 hover:bg-white/5'
+                  className={`px-5 py-4 cursor-pointer transition-all duration-150 flex items-center justify-between group ${
+                    selectedOrgId === org.id ? 'bg-gold/[0.08] text-gold' : 'text-white/60 hover:bg-white/[0.03]'
                   }`}
                 >
                   <div>
-                    <p className="font-medium text-sm">{org.name}</p>
-                    {org.short_name && <p className="text-xs text-white/30">{org.short_name}</p>}
+                    <p className="font-semibold text-sm">{org.name}</p>
+                    {org.short_name && <p className="text-xs text-white/20 mt-0.5">{org.short_name}</p>}
                   </div>
-                  <div className="hidden group-hover:flex gap-2">
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => { e.stopPropagation(); setEditingOrg({ id: org.id, name: org.name, short_name: org.short_name }) }}
-                      className="text-white/30 hover:text-gold text-xs transition-colors"
+                      className="px-2 py-1 rounded-md text-[10px] font-bold text-white/20 hover:text-gold hover:bg-gold/10 transition-all"
                     >
                       編輯
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteOrg(org.id) }}
-                      className="text-white/30 hover:text-red-400 text-xs transition-colors"
+                      className="px-2 py-1 rounded-md text-[10px] font-bold text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all"
                     >
                       刪除
                     </button>
@@ -218,81 +223,73 @@ export function TeamManager({ onBack }: TeamManagerProps) {
                 </div>
               ))}
               {orgs.length === 0 && (
-                <p className="px-4 py-6 text-white/20 text-sm text-center">尚未建立隊伍</p>
+                <div className="px-5 py-10 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-white/[0.03] border border-white/[0.06] mx-auto mb-3 flex items-center justify-center">
+                    <span className="text-white/10 text-lg">+</span>
+                  </div>
+                  <p className="text-white/15 text-xs">點擊上方新增隊伍</p>
+                </div>
               )}
             </div>
           </div>
 
           {/* Column 2: Squads */}
-          <div className="bg-navy-light border border-white/10 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-white/5">
-              <h2 className="text-white font-bold text-sm">
-                {selectedOrgId ? `${orgs.find((o) => o.id === selectedOrgId)?.name} — 小隊` : '小隊'}
-              </h2>
+          <div className="rounded-2xl bg-gradient-to-b from-[#0d2847] to-navy-light border border-white/[0.08] overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
+            <div className="px-5 py-4 flex items-center justify-between bg-white/[0.02]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-1.5 h-6 rounded-full bg-cyan-400/50" />
+                <h2 className="text-white/80 font-bold text-sm tracking-wide">
+                  {selectedOrgId ? `${orgs.find((o) => o.id === selectedOrgId)?.short_name ?? ''} 小隊` : '小隊'}
+                </h2>
+                {selectedOrgId && <span className="text-white/20 text-xs">({orgSquads.length})</span>}
+              </div>
               {selectedOrgId && (
                 <button
                   onClick={() => setEditingSquad({ id: null, org_id: selectedOrgId, name: '', age_group: '' })}
-                  className="text-gold text-xs hover:text-gold-dark transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400/70 hover:text-cyan-400 border border-cyan-500/10 transition-all"
                 >
                   + 新增
                 </button>
               )}
             </div>
 
-            {editingSquad && (
-              <div className="p-3 border-b border-white/10 bg-white/5 space-y-2">
-                <input
-                  type="text"
-                  placeholder="小隊名稱（如：黑熊 U12）"
-                  value={editingSquad.name}
-                  onChange={(e) => setEditingSquad({ ...editingSquad, name: e.target.value })}
-                  className={`${inputClass} w-full`}
-                  autoFocus
-                />
-                <input
-                  type="text"
-                  placeholder="年齡分組（如：U12）"
-                  value={editingSquad.age_group}
-                  onChange={(e) => setEditingSquad({ ...editingSquad, age_group: e.target.value })}
-                  className={`${inputClass} w-full`}
-                />
-                <div className="flex gap-2">
-                  <button onClick={saveSquad} className="bg-gold text-navy px-3 py-1 rounded text-xs font-bold hover:bg-gold-dark transition-colors">
-                    儲存
-                  </button>
-                  <button onClick={() => setEditingSquad(null)} className="text-white/40 text-xs hover:text-white transition-colors">
-                    取消
-                  </button>
-                </div>
-              </div>
+            {editingSquad && renderEditForm(
+              [
+                { placeholder: '小隊名稱', value: editingSquad.name, onChange: (v) => setEditingSquad({ ...editingSquad, name: v }) },
+                { placeholder: '分組 (U12)', value: editingSquad.age_group, onChange: (v) => setEditingSquad({ ...editingSquad, age_group: v }), className: 'w-28' },
+              ],
+              saveSquad,
+              () => setEditingSquad(null)
             )}
 
             {!selectedOrgId ? (
-              <p className="px-4 py-6 text-white/20 text-sm text-center">請先選擇隊伍</p>
+              <div className="px-5 py-10 text-center">
+                <p className="text-white/10 text-xs">請先選擇左側隊伍</p>
+              </div>
             ) : (
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-white/[0.04]">
                 {orgSquads.map((squad) => (
                   <div
                     key={squad.id}
                     onClick={() => setSelectedSquadId(squad.id)}
-                    className={`px-4 py-3 cursor-pointer transition-colors flex items-center justify-between group ${
-                      selectedSquadId === squad.id ? 'bg-gold/10 text-gold' : 'text-white/70 hover:bg-white/5'
+                    className={`px-5 py-4 cursor-pointer transition-all duration-150 flex items-center justify-between group ${
+                      selectedSquadId === squad.id ? 'bg-cyan-500/[0.08] text-cyan-300' : 'text-white/60 hover:bg-white/[0.03]'
                     }`}
                   >
                     <div>
-                      <p className="font-medium text-sm">{squad.name}</p>
-                      <p className="text-xs text-white/30">{squad.age_group}</p>
+                      <p className="font-semibold text-sm">{squad.name}</p>
+                      <p className="text-xs text-white/20 mt-0.5">{squad.age_group}</p>
                     </div>
-                    <div className="hidden group-hover:flex gap-2">
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingSquad({ id: squad.id, org_id: squad.org_id, name: squad.name, age_group: squad.age_group }) }}
-                        className="text-white/30 hover:text-gold text-xs transition-colors"
+                        className="px-2 py-1 rounded-md text-[10px] font-bold text-white/20 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
                       >
                         編輯
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); deleteSquad(squad.id) }}
-                        className="text-white/30 hover:text-red-400 text-xs transition-colors"
+                        className="px-2 py-1 rounded-md text-[10px] font-bold text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all"
                       >
                         刪除
                       </button>
@@ -300,83 +297,72 @@ export function TeamManager({ onBack }: TeamManagerProps) {
                   </div>
                 ))}
                 {orgSquads.length === 0 && (
-                  <p className="px-4 py-6 text-white/20 text-sm text-center">尚未建立小隊</p>
+                  <div className="px-5 py-10 text-center">
+                    <p className="text-white/10 text-xs">點擊上方新增小隊</p>
+                  </div>
                 )}
               </div>
             )}
           </div>
 
           {/* Column 3: Players */}
-          <div className="bg-navy-light border border-white/10 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-white/5">
-              <h2 className="text-white font-bold text-sm">
-                {selectedSquadId ? `${squads.find((s) => s.id === selectedSquadId)?.name} — 球員` : '球員'}
-              </h2>
+          <div className="rounded-2xl bg-gradient-to-b from-[#0d2847] to-navy-light border border-white/[0.08] overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
+            <div className="px-5 py-4 flex items-center justify-between bg-white/[0.02]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-1.5 h-6 rounded-full bg-emerald-400/50" />
+                <h2 className="text-white/80 font-bold text-sm tracking-wide">
+                  {selectedSquadId ? `球員` : '球員'}
+                </h2>
+                {selectedSquadId && <span className="text-white/20 text-xs">({squadPlayers.length})</span>}
+              </div>
               {selectedSquadId && (
                 <button
                   onClick={() => setEditingPlayer({ id: null, squad_id: selectedSquadId, number: '', name: '' })}
-                  className="text-gold text-xs hover:text-gold-dark transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400/70 hover:text-emerald-400 border border-emerald-500/10 transition-all"
                 >
                   + 新增
                 </button>
               )}
             </div>
 
-            {editingPlayer && (
-              <div className="p-3 border-b border-white/10 bg-white/5 space-y-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="#"
-                    value={editingPlayer.number}
-                    onChange={(e) => setEditingPlayer({ ...editingPlayer, number: e.target.value })}
-                    className={`${inputClass} w-16 text-center`}
-                  />
-                  <input
-                    type="text"
-                    placeholder="球員姓名"
-                    value={editingPlayer.name}
-                    onChange={(e) => setEditingPlayer({ ...editingPlayer, name: e.target.value })}
-                    className={`${inputClass} flex-1`}
-                    autoFocus
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={savePlayer} className="bg-gold text-navy px-3 py-1 rounded text-xs font-bold hover:bg-gold-dark transition-colors">
-                    儲存
-                  </button>
-                  <button onClick={() => setEditingPlayer(null)} className="text-white/40 text-xs hover:text-white transition-colors">
-                    取消
-                  </button>
-                </div>
-              </div>
+            {editingPlayer && renderEditForm(
+              [
+                { placeholder: '#', value: editingPlayer.number, onChange: (v) => setEditingPlayer({ ...editingPlayer, number: v }), className: 'w-16 text-center' },
+                { placeholder: '球員姓名', value: editingPlayer.name, onChange: (v) => setEditingPlayer({ ...editingPlayer, name: v }) },
+              ],
+              savePlayer,
+              () => setEditingPlayer(null)
             )}
 
             {!selectedSquadId ? (
-              <p className="px-4 py-6 text-white/20 text-sm text-center">請先選擇小隊</p>
+              <div className="px-5 py-10 text-center">
+                <p className="text-white/10 text-xs">請先選擇左側小隊</p>
+              </div>
             ) : (
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-white/[0.04]">
                 {squadPlayers.map((player) => (
                   <div
                     key={player.id}
-                    className="px-4 py-3 flex items-center justify-between group text-white/70 hover:bg-white/5 transition-colors"
+                    className="px-5 py-3.5 flex items-center justify-between group text-white/60 hover:bg-white/[0.03] transition-all duration-150"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold text-gold text-sm w-8 text-center">
-                        #{player.number}
-                      </span>
-                      <span className="text-sm">{player.name}</span>
+                      <div className="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
+                        <span className="font-mono font-black text-gold text-xs">
+                          {player.number}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium">{player.name}</span>
                     </div>
-                    <div className="hidden group-hover:flex gap-2">
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => setEditingPlayer({ id: player.id, squad_id: player.squad_id, number: player.number, name: player.name })}
-                        className="text-white/30 hover:text-gold text-xs transition-colors"
+                        className="px-2 py-1 rounded-md text-[10px] font-bold text-white/20 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
                       >
                         編輯
                       </button>
                       <button
                         onClick={() => deletePlayer(player.id)}
-                        className="text-white/30 hover:text-red-400 text-xs transition-colors"
+                        className="px-2 py-1 rounded-md text-[10px] font-bold text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all"
                       >
                         刪除
                       </button>
@@ -384,7 +370,9 @@ export function TeamManager({ onBack }: TeamManagerProps) {
                   </div>
                 ))}
                 {squadPlayers.length === 0 && (
-                  <p className="px-4 py-6 text-white/20 text-sm text-center">尚未建立球員</p>
+                  <div className="px-5 py-10 text-center">
+                    <p className="text-white/10 text-xs">點擊上方新增球員</p>
+                  </div>
                 )}
               </div>
             )}
