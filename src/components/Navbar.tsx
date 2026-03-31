@@ -33,6 +33,9 @@ export function Navbar() {
             <Link href="/#contact" className="text-white/80 hover:text-gold text-sm transition-colors">
               聯絡我們
             </Link>
+            <Link href="/scoreboard" className="text-white/80 hover:text-gold text-sm transition-colors">
+              紀錄台
+            </Link>
             <Link
               href="/admin"
               className="bg-gold text-navy px-4 py-1.5 rounded text-sm font-bold hover:bg-gold-dark transition-colors"
@@ -67,6 +70,13 @@ export function Navbar() {
                 {item}
               </Link>
             ))}
+            <Link
+              href="/scoreboard"
+              className="block text-white/80 hover:text-gold py-2 text-sm"
+              onClick={() => setMenuOpen(false)}
+            >
+              紀錄台
+            </Link>
             <Link
               href="/admin"
               className="block bg-gold text-navy px-4 py-2 rounded text-sm font-bold text-center"
