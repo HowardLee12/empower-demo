@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import {
   Organization,
@@ -12,7 +13,7 @@ import {
 } from '@/lib/scoreboard-types'
 
 interface GameSetupProps {
-  onStartGame: (homeTeam: Team, awayTeam: Team, gameDate: string, gameTime: string, location: string) => void
+  onStartGame: (homeTeam: Team, awayTeam: Team, gameDate: string, gameTime: string, location: string, homeSquadId: string, awaySquadId: string) => void
   onManageTeams: () => void
 }
 
@@ -66,7 +67,7 @@ export function GameSetup({ onStartGame, onManageTeams }: GameSetupProps) {
     const homeTeam = createTeam('home', homeSquad?.name ?? '主隊', 'gold', homeGamePlayers)
     const awayTeam = createTeam('away', awaySquad?.name ?? '客隊', 'white', awayGamePlayers)
 
-    onStartGame(homeTeam, awayTeam, gameDate, gameTime, location)
+    onStartGame(homeTeam, awayTeam, gameDate, gameTime, location, homeSquadId, awaySquadId)
   }
 
   const selectClass = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gold/50 appearance-none'
@@ -149,12 +150,20 @@ export function GameSetup({ onStartGame, onManageTeams }: GameSetupProps) {
         <div className="text-center mb-8">
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">EMPOWER 紀錄台</h1>
           <p className="text-white/40 text-sm mb-4">選擇對戰隊伍與比賽資訊開始紀錄</p>
-          <button
-            onClick={onManageTeams}
-            className="text-gold/70 hover:text-gold text-sm font-medium transition-colors"
-          >
-            管理隊伍與球員 →
-          </button>
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={onManageTeams}
+              className="text-gold/70 hover:text-gold text-sm font-medium transition-colors"
+            >
+              管理隊伍與球員 →
+            </button>
+            <Link
+              href="/scoreboard/history"
+              className="text-white/40 hover:text-white/70 text-sm font-medium transition-colors"
+            >
+              歷史紀錄 →
+            </Link>
+          </div>
         </div>
 
         {/* Game Info */}

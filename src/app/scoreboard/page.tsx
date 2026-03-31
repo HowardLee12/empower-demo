@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 import {
   Team,
   Player,
   PlayerStats,
   QUARTER_MINUTES,
+  totalScore,
 } from '@/lib/scoreboard-types'
 import { ScoreboardHeader } from '@/components/scoreboard/ScoreboardHeader'
 import { PlayerStatsTable } from '@/components/scoreboard/PlayerStatsTable'
@@ -34,6 +36,8 @@ interface GameState {
   readonly location: string
   readonly substitutingPlayerId: string | null
   readonly substitutingTeamId: string | null
+  readonly homeSquadId: string
+  readonly awaySquadId: string
 }
 
 interface HistoryEntry {
@@ -45,6 +49,84 @@ interface HistoryEntry {
 }
 
 type View = 'setup' | 'manage' | 'game'
+
+async function saveGameToDb(game: GameState): Promise<string | null> {
+  const homeScore = totalScore(game.homeTeam)
+  const awayScore = totalScore(game.awayTeam)
+
+  const { data: gameRow, error: gameErr } = await supabase
+    .from('sb_games')
+    .insert({
+      home_squad_id: game.homeSquadId,
+      away_squad_id: game.awaySquadId,
+      home_squad_name: game.homeTeam.name,
+      away_squad_name: game.awayTeam.name,
+      game_date: game.gameDate,
+      game_time: game.gameTime || null,
+      location: game.location,
+      status: 'completed',
+      quarter_scores_home: [...game.homeTeam.quarterScores],
+      quarter_scores_away: [...game.awayTeam.quarterScores],
+      home_score: homeScore,
+      away_score: awayScore,
+    })
+    .select('id')
+    .single()
+
+  if (gameErr || !gameRow) return null
+
+  const playerStats = [
+    ...game.homeTeam.players.map((p) => ({
+      game_id: gameRow.id,
+      player_id: p.id,
+      team_side: 'home',
+      player_number: p.number,
+      player_name: p.name,
+      points: p.stats.points,
+      fg_made: p.stats.fgMade,
+      fg_attempted: p.stats.fgAttempted,
+      three_made: p.stats.threeMade,
+      three_attempted: p.stats.threeAttempted,
+      ft_made: p.stats.ftMade,
+      ft_attempted: p.stats.ftAttempted,
+      off_rebounds: p.stats.offRebounds,
+      def_rebounds: p.stats.defRebounds,
+      assists: p.stats.assists,
+      steals: p.stats.steals,
+      blocks: p.stats.blocks,
+      turnovers: p.stats.turnovers,
+      fouls: p.stats.fouls,
+      playing_seconds: p.stats.playingSeconds,
+      plus_minus: p.stats.plusMinus,
+    })),
+    ...game.awayTeam.players.map((p) => ({
+      game_id: gameRow.id,
+      player_id: p.id,
+      team_side: 'away',
+      player_number: p.number,
+      player_name: p.name,
+      points: p.stats.points,
+      fg_made: p.stats.fgMade,
+      fg_attempted: p.stats.fgAttempted,
+      three_made: p.stats.threeMade,
+      three_attempted: p.stats.threeAttempted,
+      ft_made: p.stats.ftMade,
+      ft_attempted: p.stats.ftAttempted,
+      off_rebounds: p.stats.offRebounds,
+      def_rebounds: p.stats.defRebounds,
+      assists: p.stats.assists,
+      steals: p.stats.steals,
+      blocks: p.stats.blocks,
+      turnovers: p.stats.turnovers,
+      fouls: p.stats.fouls,
+      playing_seconds: p.stats.playingSeconds,
+      plus_minus: p.stats.plusMinus,
+    })),
+  ]
+
+  await supabase.from('sb_player_stats').insert(playerStats)
+  return gameRow.id
+}
 
 function applyAction(stats: PlayerStats, action: StatAction): PlayerStats {
   switch (action) {
@@ -155,9 +237,10 @@ export default function ScoreboardPage() {
   const [view, setView] = useState<View>('setup')
   const [game, setGame] = useState<GameState | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [saving, setSaving] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const handleStartGame = (homeTeam: Team, awayTeam: Team, gameDate: string, gameTime: string, location: string) => {
+  const handleStartGame = (homeTeam: Team, awayTeam: Team, gameDate: string, gameTime: string, location: string, homeSquadId: string, awaySquadId: string) => {
     setGame({
       homeTeam,
       awayTeam,
@@ -171,6 +254,8 @@ export default function ScoreboardPage() {
       gameDate,
       gameTime,
       location,
+      homeSquadId,
+      awaySquadId,
     })
     setHistory([])
     setView('game')
@@ -424,12 +509,33 @@ export default function ScoreboardPage() {
               </>
             )}
           </div>
-          <button
-            onClick={() => { setGame(null); setView('setup') }}
-            className="text-white/40 hover:text-white text-xs transition-colors"
-          >
-            結束比賽
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/scoreboard/history"
+              className="text-white/30 hover:text-white/60 text-xs transition-colors"
+            >
+              歷史紀錄
+            </Link>
+            <button
+              disabled={saving}
+              onClick={async () => {
+                if (!game) return
+                setSaving(true)
+                game.isRunning && setGame((prev) => prev ? { ...prev, isRunning: false } : prev)
+                const gameId = await saveGameToDb(game)
+                setSaving(false)
+                setGame(null)
+                if (gameId) {
+                  window.location.href = `/scoreboard/games/${gameId}`
+                } else {
+                  setView('setup')
+                }
+              }}
+              className="text-white/40 hover:text-white text-xs transition-colors disabled:opacity-50"
+            >
+              {saving ? '儲存中...' : '結束並儲存'}
+            </button>
+          </div>
         </div>
       </header>
 
