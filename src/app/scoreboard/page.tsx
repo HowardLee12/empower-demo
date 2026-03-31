@@ -32,13 +32,16 @@ interface GameState {
   readonly gameDate: string
   readonly gameTime: string
   readonly location: string
+  readonly substitutingPlayerId: string | null
+  readonly substitutingTeamId: string | null
 }
 
 interface HistoryEntry {
   readonly teamId: string
   readonly playerId: string
-  readonly action: StatAction
+  readonly action: StatAction | 'substitute'
   readonly quarter: number
+  readonly substituteOutId?: string
 }
 
 type View = 'setup' | 'manage' | 'game'
@@ -123,12 +126,28 @@ function updateTeamPlayer(team: Team, playerId: string, updater: (s: PlayerStats
   }
 }
 
+function updateOnCourtPlayers(team: Team, updater: (s: PlayerStats) => PlayerStats): Team {
+  return {
+    ...team,
+    players: team.players.map((p) =>
+      team.onCourtIds.includes(p.id) ? { ...p, stats: updater(p.stats) } : p
+    ),
+  }
+}
+
 function updateQuarterScore(team: Team, quarter: number, delta: number): Team {
   return {
     ...team,
     quarterScores: team.quarterScores.map((s, i) =>
       i === quarter - 1 ? s + delta : s
     ),
+  }
+}
+
+function substitutePlayer(team: Team, outId: string, inId: string): Team {
+  return {
+    ...team,
+    onCourtIds: team.onCourtIds.map((id) => id === outId ? inId : id),
   }
 }
 
@@ -147,6 +166,8 @@ export default function ScoreboardPage() {
       timeRemaining: QUARTER_MINUTES * 60,
       selectedPlayerId: null,
       selectedTeamId: null,
+      substitutingPlayerId: null,
+      substitutingTeamId: null,
       gameDate,
       gameTime,
       location,
@@ -155,6 +176,7 @@ export default function ScoreboardPage() {
     setView('game')
   }
 
+  // Timer: count down + accumulate playing time for on-court players
   useEffect(() => {
     if (!game) return
 
@@ -162,7 +184,16 @@ export default function ScoreboardPage() {
       timerRef.current = setInterval(() => {
         setGame((prev) => {
           if (!prev || prev.timeRemaining <= 0) return prev
-          return { ...prev, timeRemaining: prev.timeRemaining - 1 }
+          const addSecond = (s: PlayerStats): PlayerStats => ({
+            ...s,
+            playingSeconds: s.playingSeconds + 1,
+          })
+          return {
+            ...prev,
+            timeRemaining: prev.timeRemaining - 1,
+            homeTeam: updateOnCourtPlayers(prev.homeTeam, addSecond),
+            awayTeam: updateOnCourtPlayers(prev.awayTeam, addSecond),
+          }
         })
       }, 1000)
     }
@@ -201,7 +232,58 @@ export default function ScoreboardPage() {
   }, [])
 
   const selectPlayer = useCallback((teamId: string, playerId: string) => {
-    setGame((prev) => prev ? { ...prev, selectedPlayerId: playerId, selectedTeamId: teamId } : prev)
+    setGame((prev) => {
+      if (!prev) return prev
+
+      // If we're in substitution mode and clicking a bench player from the same team
+      if (prev.substitutingPlayerId && prev.substitutingTeamId === teamId) {
+        const team = teamId === 'home' ? prev.homeTeam : prev.awayTeam
+        const isBench = !team.onCourtIds.includes(playerId)
+        if (isBench) {
+          // Execute substitution
+          const updatedTeam = substitutePlayer(team, prev.substitutingPlayerId, playerId)
+          setHistory((h) => [
+            ...h,
+            { teamId, playerId, action: 'substitute' as const, quarter: prev.quarter, substituteOutId: prev.substitutingPlayerId! },
+          ])
+          return {
+            ...prev,
+            homeTeam: teamId === 'home' ? updatedTeam : prev.homeTeam,
+            awayTeam: teamId === 'away' ? updatedTeam : prev.awayTeam,
+            substitutingPlayerId: null,
+            substitutingTeamId: null,
+            selectedPlayerId: playerId,
+            selectedTeamId: teamId,
+          }
+        }
+      }
+
+      // Cancel substitution mode if clicking elsewhere
+      return {
+        ...prev,
+        selectedPlayerId: playerId,
+        selectedTeamId: teamId,
+        substitutingPlayerId: null,
+        substitutingTeamId: null,
+      }
+    })
+  }, [])
+
+  const handleSubstitute = useCallback(() => {
+    setGame((prev) => {
+      if (!prev?.selectedPlayerId || !prev?.selectedTeamId) return prev
+      const team = prev.selectedTeamId === 'home' ? prev.homeTeam : prev.awayTeam
+      if (!team.onCourtIds.includes(prev.selectedPlayerId)) return prev
+      return {
+        ...prev,
+        substitutingPlayerId: prev.selectedPlayerId,
+        substitutingTeamId: prev.selectedTeamId,
+      }
+    })
+  }, [])
+
+  const cancelSubstitute = useCallback(() => {
+    setGame((prev) => prev ? { ...prev, substitutingPlayerId: null, substitutingTeamId: null } : prev)
   }, [])
 
   const handleAction = useCallback((action: StatAction) => {
@@ -219,6 +301,22 @@ export default function ScoreboardPage() {
         ? updateQuarterScore(updatedTeam, prev.quarter, scorePoints)
         : updatedTeam
 
+      // Apply +/- to all on-court players of both teams
+      let newHome = isHome ? teamWithScore : prev.homeTeam
+      let newAway = isHome ? prev.awayTeam : teamWithScore
+
+      if (scorePoints > 0) {
+        // Scoring team on-court players get + points, opponent on-court get - points
+        newHome = updateOnCourtPlayers(newHome, (s) => ({
+          ...s,
+          plusMinus: s.plusMinus + (isHome ? scorePoints : -scorePoints),
+        }))
+        newAway = updateOnCourtPlayers(newAway, (s) => ({
+          ...s,
+          plusMinus: s.plusMinus + (isHome ? -scorePoints : scorePoints),
+        }))
+      }
+
       const teamId = prev.selectedTeamId
       const playerId = prev.selectedPlayerId
       setHistory((h) => [
@@ -226,11 +324,7 @@ export default function ScoreboardPage() {
         { teamId, playerId, action, quarter: prev.quarter },
       ])
 
-      return {
-        ...prev,
-        homeTeam: isHome ? teamWithScore : prev.homeTeam,
-        awayTeam: isHome ? prev.awayTeam : teamWithScore,
-      }
+      return { ...prev, homeTeam: newHome, awayTeam: newAway }
     })
   }, [])
 
@@ -239,22 +333,47 @@ export default function ScoreboardPage() {
       if (prev.length === 0) return prev
       const last = prev.at(-1)!
 
-      setGame((g) => {
-        if (!g) return g
-        const isHome = last.teamId === 'home'
-        const team = isHome ? g.homeTeam : g.awayTeam
-        const updatedTeam = updateTeamPlayer(team, last.playerId, (s) => reverseAction(s, last.action))
-        const scorePoints = getScoreFromAction(last.action)
-        const teamWithScore = scorePoints > 0
-          ? updateQuarterScore(updatedTeam, last.quarter, -scorePoints)
-          : updatedTeam
+      if (last.action === 'substitute') {
+        // Undo substitution: swap back
+        setGame((g) => {
+          if (!g || !last.substituteOutId) return g
+          const isHome = last.teamId === 'home'
+          const team = isHome ? g.homeTeam : g.awayTeam
+          const reverted = substitutePlayer(team, last.playerId, last.substituteOutId)
+          return {
+            ...g,
+            homeTeam: isHome ? reverted : g.homeTeam,
+            awayTeam: isHome ? g.awayTeam : reverted,
+          }
+        })
+      } else {
+        setGame((g) => {
+          if (!g) return g
+          const isHome = last.teamId === 'home'
+          const team = isHome ? g.homeTeam : g.awayTeam
+          const updatedTeam = updateTeamPlayer(team, last.playerId, (s) => reverseAction(s, last.action as StatAction))
+          const scorePoints = getScoreFromAction(last.action as StatAction)
+          const teamWithScore = scorePoints > 0
+            ? updateQuarterScore(updatedTeam, last.quarter, -scorePoints)
+            : updatedTeam
 
-        return {
-          ...g,
-          homeTeam: isHome ? teamWithScore : g.homeTeam,
-          awayTeam: isHome ? g.awayTeam : teamWithScore,
-        }
-      })
+          let newHome = isHome ? teamWithScore : g.homeTeam
+          let newAway = isHome ? g.awayTeam : teamWithScore
+
+          if (scorePoints > 0) {
+            newHome = updateOnCourtPlayers(newHome, (s) => ({
+              ...s,
+              plusMinus: s.plusMinus + (isHome ? -scorePoints : scorePoints),
+            }))
+            newAway = updateOnCourtPlayers(newAway, (s) => ({
+              ...s,
+              plusMinus: s.plusMinus + (isHome ? scorePoints : -scorePoints),
+            }))
+          }
+
+          return { ...g, homeTeam: newHome, awayTeam: newAway }
+        })
+      }
 
       return prev.slice(0, -1)
     })
@@ -283,6 +402,8 @@ export default function ScoreboardPage() {
   })()
 
   const selectedIsHome = game.selectedTeamId === 'home'
+  const selectedTeam = selectedIsHome ? game.homeTeam : game.awayTeam
+  const selectedIsOnCourt = selectedPlayer ? selectedTeam.onCourtIds.includes(selectedPlayer.id) : false
 
   return (
     <div className="min-h-screen bg-navy">
@@ -328,16 +449,20 @@ export default function ScoreboardPage() {
           <div className="space-y-4">
             <PlayerStatsTable
               players={game.homeTeam.players}
+              onCourtIds={game.homeTeam.onCourtIds}
               teamName={game.homeTeam.name}
               isHome={true}
               selectedPlayerId={game.selectedTeamId === 'home' ? game.selectedPlayerId : null}
+              substitutingPlayerId={game.substitutingTeamId === 'home' ? game.substitutingPlayerId : null}
               onSelectPlayer={(id) => selectPlayer('home', id)}
             />
             <PlayerStatsTable
               players={game.awayTeam.players}
+              onCourtIds={game.awayTeam.onCourtIds}
               teamName={game.awayTeam.name}
               isHome={false}
               selectedPlayerId={game.selectedTeamId === 'away' ? game.selectedPlayerId : null}
+              substitutingPlayerId={game.substitutingTeamId === 'away' ? game.substitutingPlayerId : null}
               onSelectPlayer={(id) => selectPlayer('away', id)}
             />
           </div>
@@ -347,7 +472,11 @@ export default function ScoreboardPage() {
               selectedPlayer={selectedPlayer}
               teamName={selectedIsHome ? game.homeTeam.name : game.awayTeam.name}
               isHome={selectedIsHome}
+              isOnCourt={selectedIsOnCourt}
+              isSubstituting={!!game.substitutingPlayerId}
               onAction={handleAction}
+              onSubstitute={handleSubstitute}
+              onCancelSubstitute={cancelSubstitute}
               onUndo={handleUndo}
               canUndo={history.length > 0}
             />

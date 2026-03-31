@@ -13,7 +13,11 @@ interface GameControlsProps {
   selectedPlayer: Player | null
   teamName: string
   isHome: boolean
+  isOnCourt: boolean
+  isSubstituting: boolean
   onAction: (action: StatAction) => void
+  onSubstitute: () => void
+  onCancelSubstitute: () => void
   onUndo: () => void
   canUndo: boolean
 }
@@ -22,12 +26,16 @@ export function GameControls({
   selectedPlayer,
   teamName,
   isHome,
+  isOnCourt,
+  isSubstituting,
   onAction,
+  onSubstitute,
+  onCancelSubstitute,
   onUndo,
   canUndo,
 }: GameControlsProps) {
   const btnBase = 'rounded-lg font-bold transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed'
-  const disabled = !selectedPlayer
+  const disabled = !selectedPlayer || !isOnCourt
 
   return (
     <div className="bg-navy-light border border-white/10 rounded-xl p-4">
@@ -35,7 +43,9 @@ export function GameControls({
       <div className={`text-center mb-4 pb-3 border-b border-white/10 ${isHome ? 'text-gold' : 'text-white'}`}>
         {selectedPlayer ? (
           <div>
-            <span className="text-white/40 text-xs">紀錄中</span>
+            <span className={`text-xs ${isOnCourt ? 'text-green-400' : 'text-white/30'}`}>
+              {isOnCourt ? '場上' : '板凳'}
+            </span>
             <p className="text-xl font-black">
               #{selectedPlayer.number} {selectedPlayer.name}
             </p>
@@ -45,6 +55,32 @@ export function GameControls({
           <p className="text-white/30 text-sm py-2">請先點選球員</p>
         )}
       </div>
+
+      {/* Substitution */}
+      {selectedPlayer && isOnCourt && !isSubstituting && (
+        <div className="mb-4">
+          <button
+            onClick={onSubstitute}
+            className={`${btnBase} w-full py-2.5 bg-cyan-600/40 hover:bg-cyan-600/60 text-cyan-300 text-sm`}
+          >
+            換人
+          </button>
+        </div>
+      )}
+
+      {isSubstituting && (
+        <div className="mb-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-400/30">
+          <p className="text-cyan-400 text-xs text-center mb-2 font-medium">
+            點選板凳球員完成換人
+          </p>
+          <button
+            onClick={onCancelSubstitute}
+            className={`${btnBase} w-full py-2 bg-white/10 hover:bg-white/20 text-white/60 text-xs`}
+          >
+            取消換人
+          </button>
+        </div>
+      )}
 
       {/* Scoring */}
       <div className="mb-4">

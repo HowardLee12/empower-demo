@@ -48,6 +48,8 @@ export interface PlayerStats {
   readonly blocks: number
   readonly turnovers: number
   readonly fouls: number
+  readonly playingSeconds: number
+  readonly plusMinus: number
 }
 
 export interface Team {
@@ -55,6 +57,7 @@ export interface Team {
   readonly name: string
   readonly color: string
   readonly players: readonly Player[]
+  readonly onCourtIds: readonly string[]
   readonly quarterScores: readonly number[]
 }
 
@@ -83,6 +86,8 @@ export const EMPTY_STATS: PlayerStats = {
   blocks: 0,
   turnovers: 0,
   fouls: 0,
+  playingSeconds: 0,
+  plusMinus: 0,
 }
 
 export const QUARTER_MINUTES = 10
@@ -98,8 +103,15 @@ export function createTeam(id: string, name: string, color: string, players: rea
     name,
     color,
     players,
+    onCourtIds: players.slice(0, 5).map((p) => p.id),
     quarterScores: [0, 0, 0, 0],
   }
+}
+
+export function formatPlayingTime(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 export function totalScore(team: Team): number {
