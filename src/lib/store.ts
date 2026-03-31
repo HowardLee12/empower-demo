@@ -9,6 +9,8 @@ export interface StoreState {
   events: Event[]
   articles: Article[]
   courses: Course[]
+  loading: boolean
+  reload: () => Promise<void>
   setBanners: (banners: Banner[]) => void
   setCoaches: (coaches: Coach[]) => void
   setEvents: (events: Event[]) => void

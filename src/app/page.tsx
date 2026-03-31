@@ -3,6 +3,7 @@
 import { useStore } from '@/lib/store'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
+import { HeroBanner } from '@/components/HeroBanner'
 
 export default function Home() {
   const { banners, coaches, events, articles, courses } = useStore()
@@ -18,23 +19,7 @@ export default function Home() {
       <Navbar />
 
       {/* Hero / Banner */}
-      <section className="relative min-h-[70vh] flex items-center justify-center bg-gradient-to-br from-navy via-navy-light to-navy pt-16">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
-        <div className="relative text-center px-4">
-          <h1 className="text-5xl md:text-7xl font-black text-white mb-4 tracking-tight">
-            {activeBanners[0]?.title || 'EMPOWER'}
-          </h1>
-          <p className="text-xl md:text-2xl text-gold font-medium mb-8">
-            {activeBanners[0]?.subtitle || '引爆你的運動潛能'}
-          </p>
-          <a
-            href="#events"
-            className="inline-block bg-gold text-navy px-8 py-3 rounded-lg font-bold text-lg hover:bg-gold-dark transition-colors"
-          >
-            立即報名
-          </a>
-        </div>
-      </section>
+      <HeroBanner banners={activeBanners} />
 
       {/* Courses */}
       <section id="courses" className="py-20 bg-navy">
