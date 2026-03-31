@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import {
-  GameState,
   Team,
   Player,
   PlayerStats,
@@ -12,7 +11,8 @@ import {
 import { ScoreboardHeader } from '@/components/scoreboard/ScoreboardHeader'
 import { PlayerStatsTable } from '@/components/scoreboard/PlayerStatsTable'
 import { GameControls } from '@/components/scoreboard/GameControls'
-import { TeamSetup } from '@/components/scoreboard/TeamSetup'
+import { GameSetup } from '@/components/scoreboard/GameSetup'
+import { TeamManager } from '@/components/scoreboard/TeamManager'
 
 type StatAction =
   | 'fg2_made' | 'fg2_miss'
@@ -21,12 +21,27 @@ type StatAction =
   | 'off_rebound' | 'def_rebound'
   | 'assist' | 'steal' | 'block' | 'turnover' | 'foul'
 
+interface GameState {
+  readonly homeTeam: Team
+  readonly awayTeam: Team
+  readonly quarter: number
+  readonly isRunning: boolean
+  readonly timeRemaining: number
+  readonly selectedPlayerId: string | null
+  readonly selectedTeamId: string | null
+  readonly gameDate: string
+  readonly gameTime: string
+  readonly location: string
+}
+
 interface HistoryEntry {
   readonly teamId: string
   readonly playerId: string
   readonly action: StatAction
   readonly quarter: number
 }
+
+type View = 'setup' | 'manage' | 'game'
 
 function applyAction(stats: PlayerStats, action: StatAction): PlayerStats {
   switch (action) {
@@ -118,11 +133,12 @@ function updateQuarterScore(team: Team, quarter: number, delta: number): Team {
 }
 
 export default function ScoreboardPage() {
+  const [view, setView] = useState<View>('setup')
   const [game, setGame] = useState<GameState | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const handleStartGame = (homeTeam: Team, awayTeam: Team) => {
+  const handleStartGame = (homeTeam: Team, awayTeam: Team, gameDate: string, gameTime: string, location: string) => {
     setGame({
       homeTeam,
       awayTeam,
@@ -131,11 +147,14 @@ export default function ScoreboardPage() {
       timeRemaining: QUARTER_MINUTES * 60,
       selectedPlayerId: null,
       selectedTeamId: null,
+      gameDate,
+      gameTime,
+      location,
     })
     setHistory([])
+    setView('game')
   }
 
-  // Timer effect
   useEffect(() => {
     if (!game) return
 
@@ -187,7 +206,7 @@ export default function ScoreboardPage() {
 
   const handleAction = useCallback((action: StatAction) => {
     setGame((prev) => {
-      if (!prev || !prev.selectedPlayerId || !prev.selectedTeamId) return prev
+      if (!prev?.selectedPlayerId || !prev?.selectedTeamId) return prev
 
       const isHome = prev.selectedTeamId === 'home'
       const team = isHome ? prev.homeTeam : prev.awayTeam
@@ -200,32 +219,25 @@ export default function ScoreboardPage() {
         ? updateQuarterScore(updatedTeam, prev.quarter, scorePoints)
         : updatedTeam
 
+      const teamId = prev.selectedTeamId
+      const playerId = prev.selectedPlayerId
+      setHistory((h) => [
+        ...h,
+        { teamId, playerId, action, quarter: prev.quarter },
+      ])
+
       return {
         ...prev,
         homeTeam: isHome ? teamWithScore : prev.homeTeam,
         awayTeam: isHome ? prev.awayTeam : teamWithScore,
       }
     })
-
-    setGame((prev) => {
-      if (!prev || !prev.selectedPlayerId || !prev.selectedTeamId) return prev
-      setHistory((h) => [
-        ...h,
-        {
-          teamId: prev.selectedTeamId!,
-          playerId: prev.selectedPlayerId!,
-          action,
-          quarter: prev.quarter,
-        },
-      ])
-      return prev
-    })
   }, [])
 
   const handleUndo = useCallback(() => {
     setHistory((prev) => {
       if (prev.length === 0) return prev
-      const last = prev[prev.length - 1]
+      const last = prev.at(-1)!
 
       setGame((g) => {
         if (!g) return g
@@ -248,10 +260,22 @@ export default function ScoreboardPage() {
     })
   }, [])
 
-  if (!game) {
-    return <TeamSetup onStartGame={handleStartGame} />
+  // --- View: Team Manager ---
+  if (view === 'manage') {
+    return <TeamManager onBack={() => setView('setup')} />
   }
 
+  // --- View: Game Setup ---
+  if (view === 'setup' || !game) {
+    return (
+      <GameSetup
+        onStartGame={handleStartGame}
+        onManageTeams={() => setView('manage')}
+      />
+    )
+  }
+
+  // --- View: Game ---
   const selectedPlayer: Player | null = (() => {
     if (!game.selectedPlayerId || !game.selectedTeamId) return null
     const team = game.selectedTeamId === 'home' ? game.homeTeam : game.awayTeam
@@ -262,7 +286,6 @@ export default function ScoreboardPage() {
 
   return (
     <div className="min-h-screen bg-navy">
-      {/* Top Bar */}
       <header className="bg-navy-light border-b border-white/10 px-4 py-3">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -271,18 +294,25 @@ export default function ScoreboardPage() {
             </Link>
             <span className="text-white/20">|</span>
             <span className="text-white/50 text-sm font-medium">紀錄台</span>
+            {game.gameDate && (
+              <>
+                <span className="text-white/20">|</span>
+                <span className="text-white/30 text-xs">
+                  {game.gameDate} {game.gameTime}{game.location ? ` @ ${game.location}` : ''}
+                </span>
+              </>
+            )}
           </div>
           <button
-            onClick={() => setGame(null)}
+            onClick={() => { setGame(null); setView('setup') }}
             className="text-white/40 hover:text-white text-xs transition-colors"
           >
-            重新開始
+            結束比賽
           </button>
         </div>
       </header>
 
       <div className="max-w-[1600px] mx-auto p-4 space-y-4">
-        {/* Scoreboard Header */}
         <ScoreboardHeader
           homeTeam={game.homeTeam}
           awayTeam={game.awayTeam}
@@ -294,7 +324,6 @@ export default function ScoreboardPage() {
           onResetTimer={resetTimer}
         />
 
-        {/* Main Content: Stats Tables + Controls */}
         <div className="grid lg:grid-cols-[1fr_280px] gap-4">
           <div className="space-y-4">
             <PlayerStatsTable
@@ -313,7 +342,6 @@ export default function ScoreboardPage() {
             />
           </div>
 
-          {/* Controls Sidebar */}
           <div className="lg:sticky lg:top-4 lg:self-start">
             <GameControls
               selectedPlayer={selectedPlayer}

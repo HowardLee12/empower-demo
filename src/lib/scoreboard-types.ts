@@ -1,3 +1,31 @@
+// --- DB-backed models (Supabase) ---
+
+export interface Organization {
+  readonly id: string
+  readonly name: string
+  readonly short_name: string
+}
+
+export interface Squad {
+  readonly id: string
+  readonly org_id: string
+  readonly name: string
+  readonly age_group: string
+}
+
+export interface SquadWithOrg extends Squad {
+  readonly org_name: string
+}
+
+export interface DbPlayer {
+  readonly id: string
+  readonly squad_id: string
+  readonly number: string
+  readonly name: string
+}
+
+// --- Game-state models (in-memory during a game) ---
+
 export interface Player {
   readonly id: string
   readonly number: string
