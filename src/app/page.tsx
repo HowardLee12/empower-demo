@@ -226,9 +226,10 @@ export default function Home() {
               {filteredLeagues.map((league) => {
                 const gameCount = leagueGameCounts.get(league.id) ?? 0
                 return (
-                  <div
+                  <Link
                     key={league.id}
-                    className="rounded-[12px] bg-white border border-bn-border p-5 shadow-[rgba(32,32,37,0.05)_0px_3px_5px] hover:shadow-[rgba(8,8,8,0.05)_0px_3px_5px_5px] transition-shadow cursor-pointer"
+                    href={`/leagues/${league.id}`}
+                    className="block rounded-[12px] bg-white border border-bn-border p-5 shadow-[rgba(32,32,37,0.05)_0px_3px_5px] hover:shadow-[rgba(8,8,8,0.05)_0px_3px_5px_5px] hover:border-bn-yellow/30 transition-all"
                   >
                     <h3 className="text-bn-ink font-semibold text-base mb-1">{league.name}</h3>
                     <div className="flex items-center gap-2">
@@ -242,7 +243,7 @@ export default function Home() {
                         </>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>
