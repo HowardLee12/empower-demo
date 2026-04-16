@@ -27,12 +27,6 @@ function pct(made: number, attempted: number): string {
   return `${Math.round((made / attempted) * 100)}%`
 }
 
-function fmtTime(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
 interface AggPlayer {
   name: string; number: string; games: number
   pts: number; fgm: number; fga: number; tpm: number; tpa: number
@@ -55,12 +49,11 @@ export default function SquadDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const [sqRes, lsRes, rRes, stRes, gRes, pRes] = await Promise.all([
+      const [sqRes, lsRes, rRes, gRes, pRes] = await Promise.all([
         supabase.from('sb_squads').select('*').eq('id', squadId).single(),
         supabase.from('sb_league_squads').select('league_id').eq('squad_id', squadId),
         supabase.from('sb_league_rosters').select('*').eq('squad_id', squadId),
-        supabase.from('sb_player_stats').select('*').eq('team_side', 'home'),
-        supabase.from('sb_games').select('id,league_id'),
+        supabase.from('sb_games').select('id,league_id,home_squad_id,away_squad_id').or(`home_squad_id.eq.${squadId},away_squad_id.eq.${squadId}`),
         supabase.from('sb_players').select('id,name,number').eq('squad_id', squadId),
       ])
       if (sqRes.data) {
@@ -68,18 +61,30 @@ export default function SquadDetailPage() {
         const orgRes = await supabase.from('sb_organizations').select('*').eq('id', sqRes.data.org_id).single()
         if (orgRes.data) setOrg(orgRes.data)
       }
+
+      // Collect league IDs from both sb_league_squads AND sb_games
+      const leagueIdSet = new Set<string>()
       if (lsRes.data) {
-        const leagueIds = lsRes.data.map((r: { league_id: string }) => r.league_id)
-        if (leagueIds.length > 0) {
-          const lRes = await supabase.from('sb_leagues').select('*').in('id', leagueIds)
-          if (lRes.data) setLeagues(lRes.data)
+        for (const r of lsRes.data) leagueIdSet.add(r.league_id)
+      }
+      // Also check games where this squad played
+      const allGameData = gRes.data ?? []
+      for (const g of allGameData) {
+        if ((g.home_squad_id === squadId || g.away_squad_id === squadId) && g.league_id) {
+          leagueIdSet.add(g.league_id)
         }
       }
+      setAllGames(allGameData)
+
+      if (leagueIdSet.size > 0) {
+        const lRes = await supabase.from('sb_leagues').select('*').in('id', [...leagueIdSet])
+        if (lRes.data) setLeagues(lRes.data)
+      }
+
       if (rRes.data) setRosters(rRes.data)
-      if (gRes.data) setAllGames(gRes.data)
       if (pRes.data) setAllPlayers(pRes.data)
 
-      // Get all stats for players in this squad (both home and away side)
+      // Get all stats for players in this squad
       const playerIds = pRes.data?.map((p: PlayerInfo) => p.id) ?? []
       if (playerIds.length > 0) {
         const statsRes = await supabase.from('sb_player_stats').select('*').in('player_id', playerIds)

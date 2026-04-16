@@ -21,9 +21,6 @@ export function Navbar() {
             <Link href="/scoreboard/history" className="text-bn-slate hover:text-white text-sm font-semibold transition-colors">
               歷史紀錄
             </Link>
-            <Link href="/scoreboard" className="text-bn-slate hover:text-white text-sm font-semibold transition-colors">
-              紀錄台
-            </Link>
             <Link
               href="/management"
               className="px-5 py-2 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors shadow-[rgb(153,153,153)_0px_2px_10px_-3px]"
@@ -48,25 +45,13 @@ export function Navbar() {
 
         {menuOpen && (
           <div className="md:hidden pb-4 space-y-1 border-t border-white/[0.06] pt-3">
-            {[
-              { label: '賽程', href: '/' },
-              { label: '歷史紀錄', href: '/scoreboard/history' },
-              { label: '紀錄台', href: '/scoreboard' },
-            ].map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="block text-bn-slate hover:text-white py-3 text-sm font-semibold"
-                onClick={() => setMenuOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
-            <Link
-              href="/management"
-              className="block text-center mt-2 px-4 py-3 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink"
-              onClick={() => setMenuOpen(false)}
-            >
+            <Link href="/" className="block text-bn-slate hover:text-white py-3 text-sm font-semibold" onClick={() => setMenuOpen(false)}>
+              賽程
+            </Link>
+            <Link href="/scoreboard/history" className="block text-bn-slate hover:text-white py-3 text-sm font-semibold" onClick={() => setMenuOpen(false)}>
+              歷史紀錄
+            </Link>
+            <Link href="/management" className="block text-center mt-2 px-4 py-3 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink" onClick={() => setMenuOpen(false)}>
               賽事管理
             </Link>
           </div>

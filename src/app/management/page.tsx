@@ -269,7 +269,8 @@ export default function ManagementPage() {
                       <span className="text-bn-border text-xs">vs</span>
                       <span className="text-bn-ink font-semibold">{g.away_squad_name}</span>
                     </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-2 items-center">
+                      <Link href={`/management/game/${g.id}`} className="px-4 py-1.5 rounded-[50px] text-xs font-bold bg-bn-green text-white hover:opacity-80 transition-opacity">開始記錄</Link>
                       <button onClick={() => setEditingGame({ id: g.id, home_squad_id: g.home_squad_id, away_squad_id: g.away_squad_id, game_date: g.game_date, game_time: g.game_time ?? '', location: g.location, status: g.status, league_id: g.league_id ?? '' })} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
                       <button onClick={() => deleteGame(g.id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
                     </div>
