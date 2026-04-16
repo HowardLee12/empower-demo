@@ -165,7 +165,14 @@ export default function LeagueDetailPage() {
                       return (
                         <tr key={s.squad_name} className="border-b border-bn-border/50 hover:bg-bn-snow transition-colors">
                           <td className="py-4 px-4 text-bn-slate font-bold tabular-nums">{i + 1}</td>
-                          <td className="py-4 px-4 text-bn-ink font-semibold">{s.squad_name}</td>
+                          <td className="py-4 px-4 font-semibold">
+                            {(() => {
+                              const sq = memberSquads.find((ms) => ms.name === s.squad_name)
+                              return sq ? (
+                                <Link href={`/squads/${sq.id}`} className="text-bn-ink hover:text-bn-yellow transition-colors">{s.squad_name}</Link>
+                              ) : s.squad_name
+                            })()}
+                          </td>
                           <td className="py-4 px-4 text-center font-bold text-bn-green tabular-nums">{s.wins}</td>
                           <td className="py-4 px-4 text-center tabular-nums text-bn-slate">{s.losses}</td>
                           <td className="py-4 px-4 text-center font-semibold text-bn-ink tabular-nums">{pct}{total > 0 ? '%' : ''}</td>

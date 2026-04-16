@@ -38,6 +38,7 @@ export default function ManagementPage() {
   const [leagues, setLeagues] = useState<League[]>([])
 
   const [leagueSquadIds, setLeagueSquadIds] = useState<{ league_id: string; squad_id: string }[]>([])
+  const [leagueRosters, setLeagueRosters] = useState<{ league_id: string; squad_id: string; player_id: string; jersey_number: string }[]>([])
 
   const [editingGame, setEditingGame] = useState<EditingGame | null>(null)
   const [editingLeague, setEditingLeague] = useState<EditingLeague | null>(null)
@@ -47,6 +48,7 @@ export default function ManagementPage() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null)
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
+  const [selectedLeagueSquadId, setSelectedLeagueSquadId] = useState<string | null>(null)
   const [toast, setToast] = useState('')
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000) }
@@ -66,6 +68,8 @@ export default function ManagementPage() {
     if (l.data) setLeagues(l.data)
     if (p.data) setPlayers(p.data)
     if (ls.data) setLeagueSquadIds(ls.data)
+    const lr = await supabase.from('sb_league_rosters').select('league_id,squad_id,player_id,jersey_number')
+    if (lr.data) setLeagueRosters(lr.data)
   }, [])
 
   useEffect(() => { if (authed) reload() }, [authed, reload])
@@ -112,6 +116,16 @@ export default function ManagementPage() {
   }
   const removeSquadFromLeague = async (leagueId: string, squadId: string) => {
     await supabase.from('sb_league_squads').delete().eq('league_id', leagueId).eq('squad_id', squadId)
+    showToast('已移除'); await reload()
+  }
+
+  // --- League Roster management ---
+  const addPlayerToRoster = async (leagueId: string, squadId: string, playerId: string, jerseyNumber: string) => {
+    await supabase.from('sb_league_rosters').insert({ league_id: leagueId, squad_id: squadId, player_id: playerId, jersey_number: jerseyNumber })
+    showToast('已加入名單'); await reload()
+  }
+  const removePlayerFromRoster = async (leagueId: string, squadId: string, playerId: string) => {
+    await supabase.from('sb_league_rosters').delete().eq('league_id', leagueId).eq('squad_id', squadId).eq('player_id', playerId)
     showToast('已移除'); await reload()
   }
 
@@ -313,30 +327,25 @@ export default function ManagementPage() {
               </div>
             )}
 
-            <div className="grid md:grid-cols-[1fr_1fr] gap-5">
-              {/* League list */}
+            <div className="grid md:grid-cols-3 gap-5">
+              {/* Col 1: League list */}
               <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
                 <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
-                  <h2 className="text-bn-ink font-bold text-sm">聯盟清單 ({leagues.length})</h2>
+                  <h2 className="text-bn-ink font-bold text-sm">聯盟 ({leagues.length})</h2>
                 </div>
                 <div className="divide-y divide-bn-border/50">
                   {leagues.map((l) => {
                     const squadCount = leagueSquadIds.filter((ls) => ls.league_id === l.id).length
-                    const gameCount = games.filter((g) => g.league_id === l.id).length
                     const isActive = selectedLeagueId === l.id
                     return (
-                      <div key={l.id} onClick={() => setSelectedLeagueId(isActive ? null : l.id)}
+                      <div key={l.id} onClick={() => { setSelectedLeagueId(isActive ? null : l.id); setSelectedLeagueSquadId(null) }}
                         className={`px-5 py-4 cursor-pointer flex items-center justify-between group transition-colors ${isActive ? 'bg-bn-yellow/10' : 'hover:bg-bn-snow'}`}>
                         <div>
                           <p className={`font-semibold text-sm ${isActive ? 'text-bn-yellow' : 'text-bn-ink'}`}>{l.name}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-bn-slate text-xs">{l.region}</span>
                             <span className="text-bn-border">|</span>
-                            <span className="text-bn-slate text-xs">{l.season}</span>
-                            <span className="text-bn-border">|</span>
                             <span className="text-bn-yellow text-xs font-semibold">{squadCount} 隊</span>
-                            <span className="text-bn-border">|</span>
-                            <span className="text-bn-slate text-xs">{gameCount} 場</span>
                           </div>
                         </div>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -350,59 +359,116 @@ export default function ManagementPage() {
                 </div>
               </div>
 
-              {/* League squads panel */}
+              {/* Col 2: Squads in league */}
               <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
+                <div className="px-5 py-3 border-b border-bn-border bg-bn-snow flex items-center justify-between">
                   <h2 className="text-bn-ink font-bold text-sm">
-                    {selectedLeagueId ? `${leagues.find((l) => l.id === selectedLeagueId)?.name} — 參賽隊伍` : '參賽隊伍'}
+                    {selectedLeagueId ? '參賽隊伍' : '隊伍'}
                   </h2>
+                  {selectedLeagueId && (
+                    <span className="text-bn-slate text-xs">{leagueSquadIds.filter((ls) => ls.league_id === selectedLeagueId).length} 隊</span>
+                  )}
                 </div>
                 {!selectedLeagueId ? (
-                  <p className="px-5 py-8 text-bn-slate text-xs text-center">請先點選左側聯盟</p>
+                  <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇聯盟</p>
                 ) : (() => {
                   const memberSquadIds = new Set(leagueSquadIds.filter((ls) => ls.league_id === selectedLeagueId).map((ls) => ls.squad_id))
                   const memberSquads = squads.filter((s) => memberSquadIds.has(s.id))
                   const availableSquads = squads.filter((s) => !memberSquadIds.has(s.id))
                   return (
                     <div>
-                      {/* Current members */}
                       <div className="divide-y divide-bn-border/50">
                         {memberSquads.map((s) => {
                           const org = orgs.find((o) => o.id === s.org_id)
+                          const rosterCount = leagueRosters.filter((r) => r.league_id === selectedLeagueId && r.squad_id === s.id).length
+                          const isActive = selectedLeagueSquadId === s.id
                           return (
-                            <div key={s.id} className="px-5 py-3 flex items-center justify-between group hover:bg-bn-snow transition-colors">
+                            <div key={s.id} onClick={() => setSelectedLeagueSquadId(isActive ? null : s.id)}
+                              className={`px-5 py-3 cursor-pointer flex items-center justify-between group transition-colors ${isActive ? 'bg-bn-yellow/10' : 'hover:bg-bn-snow'}`}>
                               <div>
-                                <span className="text-bn-ink text-sm font-semibold">{s.name}</span>
-                                <span className="text-bn-slate text-xs ml-2">{org?.short_name ?? org?.name}</span>
+                                <span className={`text-sm font-semibold ${isActive ? 'text-bn-yellow' : 'text-bn-ink'}`}>{s.name}</span>
+                                <span className="text-bn-slate text-xs ml-2">{org?.short_name}</span>
+                                <span className="text-bn-muted text-xs ml-2">{rosterCount} 人</span>
                               </div>
-                              <button onClick={() => removeSquadFromLeague(selectedLeagueId!, s.id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all">移除</button>
+                              <button onClick={(e) => { e.stopPropagation(); removeSquadFromLeague(selectedLeagueId!, s.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all">移除</button>
                             </div>
                           )
                         })}
-                        {memberSquads.length === 0 && <p className="px-5 py-4 text-bn-slate text-xs text-center">尚未加入任何隊伍</p>}
+                        {memberSquads.length === 0 && <p className="px-5 py-4 text-bn-slate text-xs text-center">尚未加入隊伍</p>}
                       </div>
-                      {/* Add squad */}
                       {availableSquads.length > 0 && (
                         <div className="border-t border-bn-border p-4">
-                          <p className="text-bn-secondary text-xs font-semibold mb-2">新增隊伍到此聯盟</p>
+                          <p className="text-bn-secondary text-xs font-semibold mb-2">新增隊伍</p>
                           <div className="flex gap-2">
                             <select id="add-squad-select" className={`${inputClass} flex-1`} defaultValue="">
-                              <option value="" disabled>-- 選擇隊伍 --</option>
+                              <option value="" disabled>-- 選擇 --</option>
                               {availableSquads.map((s) => {
                                 const org = orgs.find((o) => o.id === s.org_id)
                                 return <option key={s.id} value={s.id}>{org?.short_name ?? org?.name} - {s.name}</option>
                               })}
                             </select>
-                            <button
-                              onClick={() => {
-                                const el = document.getElementById('add-squad-select') as HTMLSelectElement
-                                if (el?.value) { addSquadToLeague(selectedLeagueId!, el.value); el.value = '' }
-                              }}
-                              className="px-4 py-2.5 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors"
-                            >
-                              加入
-                            </button>
+                            <button onClick={() => { const el = document.getElementById('add-squad-select') as HTMLSelectElement; if (el?.value) { addSquadToLeague(selectedLeagueId!, el.value); el.value = '' } }}
+                              className="px-4 py-2.5 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">加入</button>
                           </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {/* Col 3: Roster for selected squad in league */}
+              <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
+                <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
+                  <h2 className="text-bn-ink font-bold text-sm">
+                    {selectedLeagueSquadId ? `${squads.find((s) => s.id === selectedLeagueSquadId)?.name} 名單` : '參賽名單'}
+                  </h2>
+                </div>
+                {!selectedLeagueId || !selectedLeagueSquadId ? (
+                  <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇隊伍</p>
+                ) : (() => {
+                  const rosterEntries = leagueRosters.filter((r) => r.league_id === selectedLeagueId && r.squad_id === selectedLeagueSquadId)
+                  const rosterPlayerIds = new Set(rosterEntries.map((r) => r.player_id))
+                  const squadAllPlayers = players.filter((p) => p.squad_id === selectedLeagueSquadId)
+                  const availablePlayers = squadAllPlayers.filter((p) => !rosterPlayerIds.has(p.id))
+                  return (
+                    <div>
+                      <div className="divide-y divide-bn-border/50">
+                        {rosterEntries.map((r) => {
+                          const player = players.find((p) => p.id === r.player_id)
+                          if (!player) return null
+                          return (
+                            <div key={r.player_id} className="px-5 py-3 flex items-center justify-between group hover:bg-bn-snow transition-colors">
+                              <div className="flex items-center gap-3">
+                                <span className="font-mono font-bold text-bn-yellow text-xs w-8 text-center">#{r.jersey_number || player.number}</span>
+                                <span className="text-bn-ink text-sm font-medium">{player.name}</span>
+                              </div>
+                              <button onClick={() => removePlayerFromRoster(selectedLeagueId!, selectedLeagueSquadId!, r.player_id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all">移除</button>
+                            </div>
+                          )
+                        })}
+                        {rosterEntries.length === 0 && <p className="px-5 py-4 text-bn-slate text-xs text-center">尚未加入球員</p>}
+                      </div>
+                      {availablePlayers.length > 0 && (
+                        <div className="border-t border-bn-border p-4">
+                          <p className="text-bn-secondary text-xs font-semibold mb-2">新增球員到名單</p>
+                          <div className="flex gap-2">
+                            <select id="add-roster-player" className={`${inputClass} flex-1`} defaultValue="">
+                              <option value="" disabled>-- 選擇球員 --</option>
+                              {availablePlayers.map((p) => <option key={p.id} value={p.id}>#{p.number} {p.name}</option>)}
+                            </select>
+                            <button onClick={() => {
+                              const el = document.getElementById('add-roster-player') as HTMLSelectElement
+                              if (el?.value) {
+                                const p = players.find((pl) => pl.id === el.value)
+                                addPlayerToRoster(selectedLeagueId!, selectedLeagueSquadId!, el.value, p?.number ?? '')
+                                el.value = ''
+                              }
+                            }} className="px-4 py-2.5 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">加入</button>
+                          </div>
+                          {squadAllPlayers.length === 0 && (
+                            <p className="text-bn-muted text-[10px] mt-2">此小隊尚無球員，請先到「隊伍管理」新增</p>
+                          )}
                         </div>
                       )}
                     </div>
