@@ -15,6 +15,8 @@ interface League {
 
 interface GameRecord {
   id: string
+  home_squad_id: string
+  away_squad_id: string
   home_squad_name: string
   away_squad_name: string
   home_score: number
@@ -97,6 +99,17 @@ export default function LeagueDetailPage() {
   const completedGames = games.filter((g) => g.status === 'completed')
   const upcomingGames = games.filter((g) => g.status !== 'completed').sort((a, b) => a.game_date.localeCompare(b.game_date))
 
+  // Build squad name → id map from games + memberSquads
+  const squadNameToId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const s of memberSquads) map.set(s.name, s.id)
+    for (const g of games) {
+      if (g.home_squad_id && g.home_squad_name) map.set(g.home_squad_name, g.home_squad_id)
+      if (g.away_squad_id && g.away_squad_name) map.set(g.away_squad_name, g.away_squad_id)
+    }
+    return map
+  }, [games, memberSquads])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-bn-snow flex items-center justify-center">
@@ -167,9 +180,9 @@ export default function LeagueDetailPage() {
                           <td className="py-4 px-4 text-bn-slate font-bold tabular-nums">{i + 1}</td>
                           <td className="py-4 px-4 font-semibold text-bn-ink">
                             {(() => {
-                              const sq = memberSquads.find((ms) => ms.name === s.squad_name)
-                              return sq ? (
-                                <Link href={`/squads/${sq.id}`} className="text-bn-ink hover:text-bn-yellow underline-offset-2 hover:underline transition-colors">{s.squad_name}</Link>
+                              const sqId = squadNameToId.get(s.squad_name)
+                              return sqId ? (
+                                <Link href={`/squads/${sqId}`} className="text-bn-ink hover:text-bn-yellow underline-offset-2 hover:underline transition-colors">{s.squad_name}</Link>
                               ) : s.squad_name
                             })()}
                           </td>
