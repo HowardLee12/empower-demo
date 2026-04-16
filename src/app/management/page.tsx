@@ -26,12 +26,14 @@ type Tab = 'games' | 'leagues' | 'teams'
 const ADMIN_PASSWORD = 'empower2026'
 
 export default function ManagementPage() {
-  const [authed, setAuthed] = useState(() => {
-    if (typeof window !== 'undefined') return sessionStorage.getItem('empower_authed') === '1'
-    return false
-  })
+  const [authed, setAuthed] = useState(false)
   const [pw, setPw] = useState('')
   const [pwError, setPwError] = useState(false)
+
+  // Restore auth from sessionStorage on mount
+  useEffect(() => {
+    if (sessionStorage.getItem('empower_authed') === '1') setAuthed(true)
+  }, [])
   const [tab, setTab] = useState<Tab>('games')
 
   const [orgs, setOrgs] = useState<Organization[]>([])

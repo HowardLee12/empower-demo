@@ -330,12 +330,12 @@ export default function ManagementGamePage() {
           <div className="flex items-center gap-3">
             <Link href="/management" className="text-bn-yellow font-bold text-lg tracking-wider">EMPOWER</Link>
             <span className="text-bn-steel">|</span>
-            <span className="text-bn-slate text-sm font-semibold">紀錄台</span>
+            <span className="text-bn-slate text-sm font-semibold">比賽紀錄</span>
             <span className="text-bn-steel">|</span>
             <span className="text-bn-muted text-xs">{dbGame.game_date} {dbGame.game_time ?? ''}{dbGame.location ? ` @ ${dbGame.location}` : ''}</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/management" className="text-bn-muted hover:text-bn-slate text-xs transition-colors">返回管理</Link>
+            <Link href="/management" className="text-bn-muted hover:text-bn-slate text-xs transition-colors">返回管理後台</Link>
             <button
               disabled={saving}
               onClick={async () => {
