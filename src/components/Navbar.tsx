@@ -15,13 +15,13 @@ export function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/" className="text-bn-secondary hover:text-bn-ink hover:text-white text-sm font-semibold transition-colors">
+            <Link href="/" className="text-bn-slate hover:text-white text-sm font-semibold transition-colors">
               賽程
             </Link>
-            <Link href="/scoreboard/history" className="text-bn-secondary hover:text-white text-sm font-semibold transition-colors">
+            <Link href="/scoreboard/history" className="text-bn-slate hover:text-white text-sm font-semibold transition-colors">
               歷史紀錄
             </Link>
-            <Link href="/scoreboard" className="text-bn-secondary hover:text-white text-sm font-semibold transition-colors">
+            <Link href="/scoreboard" className="text-bn-slate hover:text-white text-sm font-semibold transition-colors">
               紀錄台
             </Link>
             <Link
