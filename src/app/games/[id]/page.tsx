@@ -187,23 +187,23 @@ export default function PublicGameDetailPage() {
 
           <div className="flex items-center justify-center gap-8 sm:gap-16">
             <div className="text-center">
-              <Link href={`/squads/${game.home_squad_id}`} className={`block font-bold text-base mb-2 hover:underline underline-offset-2 ${homeWin ? 'text-bn-ink' : 'text-bn-ink/50'}`}>
+              <Link href={`/squads/${game.home_squad_id}`} className="block font-bold text-base mb-2 text-bn-ink hover:underline underline-offset-2">
                 {game.home_squad_name}
               </Link>
-              <p className={`text-5xl sm:text-6xl font-black tabular-nums ${homeWin ? 'text-bn-ink' : 'text-bn-ink/40'}`}>{game.home_score}</p>
+              <p className="text-5xl sm:text-6xl font-black tabular-nums text-bn-ink">{game.home_score}</p>
               {homeWin && <span className="text-bn-ink/60 text-xs font-bold mt-1 inline-block">WIN</span>}
             </div>
             <div className="text-center">
-              <div className="text-bn-ink/20 text-xs font-bold tracking-widest mb-1">FINAL</div>
-              <p className="text-bn-ink/30 text-sm">{game.game_date}</p>
-              {game.game_time && <p className="text-bn-ink/20 text-xs">{game.game_time}</p>}
-              {game.location && <p className="text-bn-ink/20 text-xs">{game.location}</p>}
+              <div className="text-bn-ink/40 text-xs font-bold tracking-widest mb-1">FINAL</div>
+              <p className="text-bn-ink/60 text-sm">{game.game_date}</p>
+              {game.game_time && <p className="text-bn-ink/40 text-xs">{game.game_time}</p>}
+              {game.location && <p className="text-bn-ink/40 text-xs">{game.location}</p>}
             </div>
             <div className="text-center">
-              <Link href={`/squads/${game.away_squad_id}`} className={`block font-bold text-base mb-2 hover:underline underline-offset-2 ${!homeWin ? 'text-bn-ink' : 'text-bn-ink/50'}`}>
+              <Link href={`/squads/${game.away_squad_id}`} className="block font-bold text-base mb-2 text-bn-ink hover:underline underline-offset-2">
                 {game.away_squad_name}
               </Link>
-              <p className={`text-5xl sm:text-6xl font-black tabular-nums ${!homeWin ? 'text-bn-ink' : 'text-bn-ink/40'}`}>{game.away_score}</p>
+              <p className="text-5xl sm:text-6xl font-black tabular-nums text-bn-ink">{game.away_score}</p>
               {!homeWin && game.away_score !== game.home_score && <span className="text-bn-ink/60 text-xs font-bold mt-1 inline-block">WIN</span>}
             </div>
           </div>
