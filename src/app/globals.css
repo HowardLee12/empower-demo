@@ -3,16 +3,37 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-navy: #001E3C;
-  --color-navy-light: #0a2e52;
-  --color-gold: #f4ce21;
-  --color-gold-dark: #d4b01e;
+
+  /* Binance-inspired palette */
+  --color-bn-yellow: #F0B90B;
+  --color-bn-gold: #FFD000;
+  --color-bn-gold-light: #F8D12F;
+  --color-bn-active: #D0980B;
+  --color-bn-dark: #222126;
+  --color-bn-card: #2B2F36;
+  --color-bn-ink: #1E2026;
+  --color-bn-secondary: #32313A;
+  --color-bn-slate: #848E9C;
+  --color-bn-steel: #686A6C;
+  --color-bn-muted: #777E90;
+  --color-bn-border: #E6E8EA;
+  --color-bn-snow: #F5F5F5;
+  --color-bn-green: #0ECB81;
+  --color-bn-red: #F6465D;
+  --color-bn-focus: #1EAEDB;
+
+  /* Legacy aliases (gradual migration) */
+  --color-navy: #222126;
+  --color-navy-light: #2B2F36;
+  --color-gold: #F0B90B;
+  --color-gold-dark: #D0980B;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 :root {
-  --background: #001E3C;
+  --background: #1E2026;
   --foreground: #ffffff;
 }
 
