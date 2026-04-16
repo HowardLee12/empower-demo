@@ -26,7 +26,10 @@ type Tab = 'games' | 'leagues' | 'teams'
 const ADMIN_PASSWORD = 'empower2026'
 
 export default function ManagementPage() {
-  const [authed, setAuthed] = useState(false)
+  const [authed, setAuthed] = useState(() => {
+    if (typeof window !== 'undefined') return sessionStorage.getItem('empower_authed') === '1'
+    return false
+  })
   const [pw, setPw] = useState('')
   const [pwError, setPwError] = useState(false)
   const [tab, setTab] = useState<Tab>('games')
@@ -75,7 +78,7 @@ export default function ManagementPage() {
   useEffect(() => { if (authed) reload() }, [authed, reload])
 
   const handleLogin = () => {
-    if (pw === ADMIN_PASSWORD) { setAuthed(true); setPwError(false) } else setPwError(true)
+    if (pw === ADMIN_PASSWORD) { setAuthed(true); sessionStorage.setItem('empower_authed', '1'); setPwError(false) } else setPwError(true)
   }
 
   // --- Game CRUD ---
@@ -211,7 +214,7 @@ export default function ManagementPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link href="/" className="text-bn-secondary hover:text-bn-ink text-sm font-medium transition-colors">回首頁</Link>
-            <button onClick={() => setAuthed(false)} className="text-bn-slate hover:text-bn-ink text-sm transition-colors">登出</button>
+            <button onClick={() => { setAuthed(false); sessionStorage.removeItem('empower_authed') }} className="text-bn-slate hover:text-bn-ink text-sm transition-colors">登出</button>
           </div>
         </div>
       </header>
