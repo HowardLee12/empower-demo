@@ -6,49 +6,33 @@ import { useState } from 'react'
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
 
+  const linkClass = 'text-white/50 hover:text-white text-sm font-medium transition-colors'
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-navy/95 backdrop-blur border-b border-white/10">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#060f1d]/90 backdrop-blur-lg border-b border-white/[0.06]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/" className="text-gold font-bold text-xl tracking-wider">
+        <div className="flex items-center justify-between h-14">
+          <Link href="/" className="text-gold font-black text-lg tracking-widest">
             EMPOWER
           </Link>
 
-          <div className="hidden md:flex items-center gap-8">
-            <Link href="/#courses" className="text-white/80 hover:text-gold text-sm transition-colors">
-              籃球訓練
-            </Link>
-            <Link href="/#events" className="text-white/80 hover:text-gold text-sm transition-colors">
-              特色營隊
-            </Link>
-            <Link href="/#articles" className="text-white/80 hover:text-gold text-sm transition-colors">
-              最新文章
-            </Link>
-            <Link href="/#coaches" className="text-white/80 hover:text-gold text-sm transition-colors">
-              教練團隊
-            </Link>
-            <Link href="/#about" className="text-white/80 hover:text-gold text-sm transition-colors">
-              關於我們
-            </Link>
-            <Link href="/#contact" className="text-white/80 hover:text-gold text-sm transition-colors">
-              聯絡我們
-            </Link>
-            <Link href="/scoreboard" className="text-white/80 hover:text-gold text-sm transition-colors">
-              紀錄台
-            </Link>
+          <div className="hidden md:flex items-center gap-6">
+            <Link href="/" className={linkClass}>賽程</Link>
+            <Link href="/scoreboard/history" className={linkClass}>歷史紀錄</Link>
+            <Link href="/scoreboard" className={linkClass}>紀錄台</Link>
             <Link
-              href="/admin"
-              className="bg-gold text-navy px-4 py-1.5 rounded text-sm font-bold hover:bg-gold-dark transition-colors"
+              href="/management"
+              className="px-4 py-1.5 rounded-full text-xs font-bold bg-gold/10 hover:bg-gold/20 text-gold/70 hover:text-gold border border-gold/10 transition-all"
             >
-              管理後台
+              賽事管理
             </Link>
           </div>
 
           <button
-            className="md:hidden text-white"
+            className="md:hidden text-white/60"
             onClick={() => setMenuOpen(!menuOpen)}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {menuOpen ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               ) : (
@@ -59,29 +43,27 @@ export function Navbar() {
         </div>
 
         {menuOpen && (
-          <div className="md:hidden pb-4 space-y-2">
-            {['籃球訓練', '特色營隊', '最新文章', '教練團隊', '關於我們', '聯絡我們'].map((item) => (
+          <div className="md:hidden pb-4 space-y-1 border-t border-white/[0.04] pt-3">
+            {[
+              { label: '賽程', href: '/' },
+              { label: '歷史紀錄', href: '/scoreboard/history' },
+              { label: '紀錄台', href: '/scoreboard' },
+            ].map((item) => (
               <Link
-                key={item}
-                href={`/#${item}`}
-                className="block text-white/80 hover:text-gold py-2 text-sm"
+                key={item.label}
+                href={item.href}
+                className="block text-white/50 hover:text-white py-2.5 text-sm font-medium"
                 onClick={() => setMenuOpen(false)}
               >
-                {item}
+                {item.label}
               </Link>
             ))}
             <Link
-              href="/scoreboard"
-              className="block text-white/80 hover:text-gold py-2 text-sm"
+              href="/management"
+              className="block text-center mt-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-gold/10 text-gold/70 border border-gold/10"
               onClick={() => setMenuOpen(false)}
             >
-              紀錄台
-            </Link>
-            <Link
-              href="/admin"
-              className="block bg-gold text-navy px-4 py-2 rounded text-sm font-bold text-center"
-            >
-              管理後台
+              賽事管理
             </Link>
           </div>
         )}
