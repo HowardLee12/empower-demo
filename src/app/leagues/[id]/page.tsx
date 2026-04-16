@@ -33,12 +33,14 @@ interface StandingRow {
   points_against: number
 }
 
-function buildStandings(games: GameRecord[]): StandingRow[] {
+function buildStandings(games: GameRecord[], registeredSquads: SquadInfo[]): StandingRow[] {
   const map = new Map<string, StandingRow>()
   const ensure = (name: string) => {
     if (!map.has(name)) map.set(name, { squad_name: name, wins: 0, losses: 0, points_for: 0, points_against: 0 })
     return map.get(name)!
   }
+  // Add all registered squads first
+  for (const s of registeredSquads) ensure(s.name)
   for (const g of games) {
     if (g.status !== 'completed') continue
     const h = ensure(g.home_squad_name)
@@ -48,7 +50,6 @@ function buildStandings(games: GameRecord[]): StandingRow[] {
     if (g.home_score > g.away_score) { h.wins++; a.losses++ }
     else if (g.away_score > g.home_score) { a.wins++; h.losses++ }
   }
-  // Also add teams from pending games that have 0 record
   for (const g of games) {
     ensure(g.home_squad_name)
     ensure(g.away_squad_name)
@@ -63,27 +64,36 @@ function buildStandings(games: GameRecord[]): StandingRow[] {
   })
 }
 
+interface SquadInfo { id: string; name: string }
+
 export default function LeagueDetailPage() {
   const params = useParams()
   const leagueId = params.id as string
   const [league, setLeague] = useState<League | null>(null)
   const [games, setGames] = useState<GameRecord[]>([])
+  const [memberSquads, setMemberSquads] = useState<SquadInfo[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
-      const [lRes, gRes] = await Promise.all([
+      const [lRes, gRes, lsRes, sRes] = await Promise.all([
         supabase.from('sb_leagues').select('*').eq('id', leagueId).single(),
         supabase.from('sb_games').select('*').eq('league_id', leagueId).order('game_date', { ascending: false }),
+        supabase.from('sb_league_squads').select('squad_id').eq('league_id', leagueId),
+        supabase.from('sb_squads').select('id,name'),
       ])
       if (lRes.data) setLeague(lRes.data)
       if (gRes.data) setGames(gRes.data)
+      if (lsRes.data && sRes.data) {
+        const squadIds = new Set(lsRes.data.map((r: { squad_id: string }) => r.squad_id))
+        setMemberSquads(sRes.data.filter((s: SquadInfo) => squadIds.has(s.id)))
+      }
       setLoading(false)
     }
     load()
   }, [leagueId])
 
-  const standings = useMemo(() => buildStandings(games), [games])
+  const standings = useMemo(() => buildStandings(games, memberSquads), [games, memberSquads])
   const completedGames = games.filter((g) => g.status === 'completed')
   const upcomingGames = games.filter((g) => g.status !== 'completed').sort((a, b) => a.game_date.localeCompare(b.game_date))
 
