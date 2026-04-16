@@ -128,51 +128,49 @@ export default function Home() {
                     const awayWin = g.away_score > g.home_score
                     const leagueName = leagues.find((l) => l.id === g.league_id)?.name
 
-                    return (
-                      <div
-                        key={g.id}
-                        className="rounded-[12px] bg-white border border-bn-border p-4 shadow-[rgba(32,32,37,0.05)_0px_3px_5px] hover:shadow-[rgba(8,8,8,0.05)_0px_3px_5px_5px] transition-shadow"
-                      >
-                        <div className="flex items-center justify-between mb-2">
+                    const inner = (
+                      <>
+                        <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            {g.game_time && <span className="text-bn-ink text-xs font-semibold">{g.game_time}</span>}
-                            {g.location && <span className="text-bn-slate text-xs">{g.location}</span>}
+                            {g.game_time && <span className="text-bn-ink text-sm font-semibold">{g.game_time}</span>}
+                            {g.location && <span className="text-bn-slate text-sm">{g.location}</span>}
                           </div>
-                          {leagueName && <span className="text-bn-muted text-[11px]">{leagueName}</span>}
-                          {isCompleted && (
-                            <span className="text-bn-slate text-[10px] font-bold tracking-wider">FINAL</span>
-                          )}
+                          {leagueName && <span className="text-bn-muted text-xs">{leagueName}</span>}
+                          {isCompleted && <span className="text-bn-slate text-xs font-bold tracking-wider">FINAL</span>}
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3 flex-1">
-                            <span className={`font-semibold text-sm ${isCompleted && homeWin ? 'text-bn-ink' : 'text-bn-secondary'}`}>
-                              {g.home_squad_name}
-                            </span>
-                            {isCompleted && homeWin && (
-                              <span className="text-bn-green text-[10px] font-bold">勝</span>
-                            )}
+                            <span className={`font-bold text-base ${isCompleted && homeWin ? 'text-bn-ink' : 'text-bn-secondary'}`}>{g.home_squad_name}</span>
+                            {isCompleted && homeWin && <span className="text-bn-green text-xs font-bold">勝</span>}
                           </div>
                           {isCompleted ? (
-                            <Link
-                              href={`/scoreboard/games/${g.id}`}
-                              className="flex items-center gap-2 px-4"
-                            >
-                              <span className={`text-xl font-bold tabular-nums ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_score}</span>
-                              <span className="text-bn-border mx-1">-</span>
-                              <span className={`text-xl font-bold tabular-nums ${awayWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.away_score}</span>
-                            </Link>
+                            <div className="flex items-center gap-3 px-6">
+                              <span className={`text-3xl font-bold tabular-nums ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_score}</span>
+                              <span className="text-bn-border text-lg">-</span>
+                              <span className={`text-3xl font-bold tabular-nums ${awayWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.away_score}</span>
+                            </div>
                           ) : (
-                            <span className="text-bn-yellow text-xs font-semibold px-4">即將開始</span>
+                            <span className="text-bn-yellow text-sm font-semibold px-6">即將開始</span>
                           )}
                           <div className="flex items-center gap-3 flex-1 justify-end">
-                            {isCompleted && awayWin && (
-                              <span className="text-bn-green text-[10px] font-bold">勝</span>
-                            )}
-                            <span className={`font-semibold text-sm ${isCompleted && awayWin ? 'text-bn-ink' : 'text-bn-secondary'}`}>
-                              {g.away_squad_name}
-                            </span>
+                            {isCompleted && awayWin && <span className="text-bn-green text-xs font-bold">勝</span>}
+                            <span className={`font-bold text-base ${isCompleted && awayWin ? 'text-bn-ink' : 'text-bn-secondary'}`}>{g.away_squad_name}</span>
                           </div>
                         </div>
+                      </>
+                    )
+
+                    if (isCompleted) {
+                      return (
+                        <Link key={g.id} href={`/games/${g.id}`}
+                          className="block rounded-[12px] bg-white border border-bn-border p-5 shadow-[rgba(32,32,37,0.05)_0px_3px_5px] hover:border-bn-yellow/40 hover:shadow-[rgba(8,8,8,0.08)_0px_3px_10px_5px] transition-all">
+                          {inner}
+                        </Link>
+                      )
+                    }
+                    return (
+                      <div key={g.id} className="rounded-[12px] bg-white border border-bn-border p-5 shadow-[rgba(32,32,37,0.05)_0px_3px_5px]">
+                        {inner}
                       </div>
                     )
                   })}

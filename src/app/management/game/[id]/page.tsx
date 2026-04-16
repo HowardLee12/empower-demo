@@ -343,7 +343,7 @@ export default function ManagementGamePage() {
                 if (game.isRunning) setGame((prev) => prev ? { ...prev, isRunning: false } : prev)
                 const ok = await saveGame(dbGameId, game)
                 setSaving(false)
-                if (ok) window.location.href = `/scoreboard/games/${dbGameId}`
+                if (ok) window.location.href = `/games/${dbGameId}`
               }}
               className="px-5 py-1.5 rounded-[50px] text-xs font-bold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors disabled:opacity-40"
             >

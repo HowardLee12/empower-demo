@@ -300,7 +300,7 @@ export default function ManagementPage() {
                         <span className={`font-semibold ${!homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.away_squad_name}</span>
                       </div>
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link href={`/scoreboard/games/${g.id}`} className="text-bn-slate hover:text-bn-focus text-xs font-semibold transition-colors">數據</Link>
+                        <Link href={`/games/${g.id}`} className="text-bn-slate hover:text-bn-focus text-xs font-semibold transition-colors">數據</Link>
                         <button onClick={() => deleteGame(g.id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
                       </div>
                     </div>

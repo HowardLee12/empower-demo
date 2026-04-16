@@ -240,7 +240,7 @@ export default function LeagueDetailPage() {
                 return (
                   <Link
                     key={g.id}
-                    href={`/scoreboard/games/${g.id}`}
+                    href={`/games/${g.id}`}
                     className="block rounded-[8px] bg-white border border-bn-border px-5 py-4 shadow-[rgba(32,32,37,0.05)_0px_3px_5px] hover:shadow-[rgba(8,8,8,0.05)_0px_3px_5px_5px] hover:border-bn-yellow/30 transition-all"
                   >
                     <div className="flex items-center justify-between">

@@ -86,7 +86,7 @@ export default function HistoryPage() {
             return (
               <Link
                 key={g.id}
-                href={`/scoreboard/games/${g.id}`}
+                href={`/games/${g.id}`}
                 className="group block rounded-2xl bg-gradient-to-r from-[#0d2847] to-navy-light border border-white/[0.06] hover:border-gold/20 p-5 transition-all duration-200 hover:shadow-[0_4px_24px_rgba(244,206,33,0.05)]"
               >
                 <div className="flex items-center justify-between">
