@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Navbar } from '@/components/Navbar'
-import { Calendar } from '@/components/Calendar'
+import { DateStrip } from '@/components/DateStrip'
 
 interface GameRecord {
   id: string
@@ -24,14 +24,13 @@ interface League {
   name: string
   region: string
   season: string
-  is_active: boolean
 }
 
 export default function Home() {
   const [games, setGames] = useState<GameRecord[]>([])
   const [leagues, setLeagues] = useState<League[]>([])
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
+  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -47,214 +46,163 @@ export default function Home() {
     load()
   }, [])
 
-  // All unique dates that have games
   const gameDates = useMemo(() => new Set(games.map((g) => g.game_date)), [games])
 
-  // Games for the selected date
-  const dailyGames = useMemo(
-    () => games.filter((g) => g.game_date === selectedDate),
-    [games, selectedDate]
-  )
-
-  // Unique regions for tabs
-  const regions = useMemo(() => {
+  // Event type tabs (from league.region)
+  const eventTypes = useMemo(() => {
     const set = new Set(leagues.map((l) => l.region))
-    return ['所有賽事', ...set]
+    return [...set]
   }, [leagues])
 
-  // Filtered leagues
-  const filteredLeagues = useMemo(() => {
-    if (!selectedRegion || selectedRegion === '所有賽事') return leagues
-    return leagues.filter((l) => l.region === selectedRegion)
-  }, [leagues, selectedRegion])
+  // Filter games by date + event type
+  const filteredGames = useMemo(() => {
+    let result = games.filter((g) => g.game_date === selectedDate)
+    if (selectedLeagueId) {
+      result = result.filter((g) => g.league_id === selectedLeagueId)
+    }
+    return result
+  }, [games, selectedDate, selectedLeagueId])
 
-  // Count games per league
-  const leagueGameCounts = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const g of games) {
-      if (g.league_id) map.set(g.league_id, (map.get(g.league_id) ?? 0) + 1)
+  // Group leagues by event type for the tab filter
+  const leaguesByType = useMemo(() => {
+    const map = new Map<string, League[]>()
+    for (const l of leagues) {
+      const list = map.get(l.region) ?? []
+      list.push(l)
+      map.set(l.region, list)
     }
     return map
-  }, [games])
+  }, [leagues])
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bn-dark flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-bn-yellow/30 border-t-bn-yellow rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-bn-dark">
+    <div className="min-h-screen bg-bn-snow">
       <Navbar />
 
-      {/* Hero banner */}
-      <div className="bg-bn-yellow pt-16">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8 text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold text-bn-ink">
-            EMPOWER BASKETBALL
+      {/* Hero */}
+      <div className="bg-bn-dark pt-16 pb-6">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white text-center py-6">
+            日程・結果
           </h1>
+
+          {/* Event Type Tabs */}
+          <div className="flex items-center justify-center gap-2 flex-wrap mb-6">
+            <button
+              onClick={() => setSelectedLeagueId(null)}
+              className={`px-4 py-2 rounded-[6px] text-sm font-semibold transition-colors ${
+                !selectedLeagueId ? 'bg-bn-yellow text-bn-ink' : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              全部
+            </button>
+            {eventTypes.map((type) => {
+              const typeLeagues = leaguesByType.get(type) ?? []
+              return typeLeagues.map((league) => (
+                <button
+                  key={league.id}
+                  onClick={() => setSelectedLeagueId(selectedLeagueId === league.id ? null : league.id)}
+                  className={`px-4 py-2 rounded-[6px] text-sm font-semibold transition-colors ${
+                    selectedLeagueId === league.id ? 'bg-bn-yellow text-bn-ink' : 'bg-white/10 text-white/70 hover:bg-white/20'
+                  }`}
+                >
+                  {league.name}
+                </button>
+              ))
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Calendar + Daily Games */}
-      <section className="bg-white border-b border-bn-border">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8">
-          <div className="grid md:grid-cols-[300px_1fr] gap-8">
-            {/* Calendar */}
-            <div>
-              <Calendar
-                selectedDate={selectedDate}
-                gameDates={gameDates}
-                onSelectDate={setSelectedDate}
-              />
-            </div>
-
-            {/* Daily games */}
-            <div>
-              <h2 className="text-bn-ink font-bold text-lg mb-4">
-                {selectedDate === new Date().toISOString().split('T')[0] ? '本日賽事' : `${selectedDate} 賽事`}
-              </h2>
-              {dailyGames.length === 0 ? (
-                <div className="rounded-[12px] bg-bn-snow border border-bn-border p-8 text-center">
-                  <p className="text-bn-slate text-sm">No Event Today</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                  {dailyGames.map((g) => {
-                    const isCompleted = g.status === 'completed'
-                    const homeWin = g.home_score > g.away_score
-                    const awayWin = g.away_score > g.home_score
-                    const leagueName = leagues.find((l) => l.id === g.league_id)?.name
-
-                    const inner = (
-                      <>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            {g.game_time && <span className="text-bn-ink text-sm font-semibold">{g.game_time}</span>}
-                            {g.location && <span className="text-bn-slate text-sm">{g.location}</span>}
-                          </div>
-                          {leagueName && <span className="text-bn-muted text-xs">{leagueName}</span>}
-                          {isCompleted && <span className="text-bn-slate text-xs font-bold tracking-wider">FINAL</span>}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1">
-                            <span className={`font-bold text-base ${isCompleted && homeWin ? 'text-bn-ink' : 'text-bn-secondary'}`}>{g.home_squad_name}</span>
-                            {isCompleted && homeWin && <span className="text-bn-green text-xs font-bold">勝</span>}
-                          </div>
-                          {isCompleted ? (
-                            <div className="flex items-center gap-3 px-6">
-                              <span className={`text-3xl font-bold tabular-nums ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_score}</span>
-                              <span className="text-bn-border text-lg">-</span>
-                              <span className={`text-3xl font-bold tabular-nums ${awayWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.away_score}</span>
-                            </div>
-                          ) : (
-                            <span className="text-bn-yellow text-sm font-semibold px-6">即將開始</span>
-                          )}
-                          <div className="flex items-center gap-3 flex-1 justify-end">
-                            {isCompleted && awayWin && <span className="text-bn-green text-xs font-bold">勝</span>}
-                            <span className={`font-bold text-base ${isCompleted && awayWin ? 'text-bn-ink' : 'text-bn-secondary'}`}>{g.away_squad_name}</span>
-                          </div>
-                        </div>
-                      </>
-                    )
-
-                    if (isCompleted) {
-                      return (
-                        <Link key={g.id} href={`/games/${g.id}`}
-                          className="block rounded-[12px] bg-white border border-bn-border p-5 shadow-[rgba(32,32,37,0.05)_0px_3px_5px] hover:border-bn-yellow/40 hover:shadow-[rgba(8,8,8,0.08)_0px_3px_10px_5px] transition-all">
-                          {inner}
-                        </Link>
-                      )
-                    }
-                    return (
-                      <div key={g.id} className="rounded-[12px] bg-white border border-bn-border p-5 shadow-[rgba(32,32,37,0.05)_0px_3px_5px]">
-                        {inner}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+      {/* Date Strip */}
+      <div className="bg-white border-b border-bn-border">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-3">
+          <DateStrip
+            selectedDate={selectedDate}
+            gameDates={gameDates}
+            onSelectDate={setSelectedDate}
+          />
         </div>
-      </section>
+      </div>
 
-      {/* Leagues Section */}
-      <section className="bg-white py-12 border-b border-bn-border">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-8">
-          <h2 className="text-2xl sm:text-[34px] font-bold text-bn-ink text-center mb-2">EMPOWER EVENTS</h2>
-          <p className="text-bn-slate text-center mb-8">賽事一覽</p>
-          <hr className="border-bn-ink w-16 mx-auto mb-8" />
-
-          {/* Region Tabs */}
-          <div className="flex flex-wrap gap-2 mb-8 justify-center">
-            {regions.map((r) => {
-              const isActive = (!selectedRegion && r === '所有賽事') || selectedRegion === r
-              const count = r === '所有賽事'
-                ? leagues.length
-                : leagues.filter((l) => l.region === r).length
-              return (
-                <button
-                  key={r}
-                  onClick={() => setSelectedRegion(r === '所有賽事' ? null : r)}
-                  className={`px-4 py-2 rounded-[6px] text-sm font-semibold transition-colors ${
-                    isActive
-                      ? 'bg-bn-yellow text-bn-ink'
-                      : 'bg-bn-snow text-bn-secondary hover:bg-bn-border/60'
-                  }`}
-                >
-                  {r}
-                  <span className={`ml-1.5 text-xs ${isActive ? 'text-bn-ink/60' : 'text-bn-slate'}`}>
-                    {count}
-                  </span>
-                </button>
-              )
-            })}
+      {/* Game Cards */}
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8">
+        {filteredGames.length === 0 ? (
+          <div className="rounded-[12px] bg-white border border-bn-border p-12 text-center">
+            <p className="text-bn-slate text-sm">本日無賽事</p>
           </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredGames.map((g) => {
+              const isCompleted = g.status === 'completed'
+              const homeWin = g.home_score > g.away_score
+              const awayWin = g.away_score > g.home_score
+              const leagueName = leagues.find((l) => l.id === g.league_id)?.name
 
-          {/* League Grid */}
-          {filteredLeagues.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-bn-slate text-sm">尚未建立賽事</p>
-            </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredLeagues.map((league) => {
-                const gameCount = leagueGameCounts.get(league.id) ?? 0
-                return (
-                  <Link
-                    key={league.id}
-                    href={`/leagues/${league.id}`}
-                    className="block rounded-[12px] bg-white border border-bn-border p-5 shadow-[rgba(32,32,37,0.05)_0px_3px_5px] hover:shadow-[rgba(8,8,8,0.05)_0px_3px_5px_5px] hover:border-bn-yellow/30 transition-all"
-                  >
-                    <h3 className="text-bn-ink font-semibold text-base mb-1">{league.name}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-bn-slate text-xs">{league.region}</span>
-                      <span className="text-bn-border">|</span>
-                      <span className="text-bn-slate text-xs">{league.season}</span>
-                      {gameCount > 0 && (
+              const card = (
+                <div className="rounded-[12px] bg-white border border-bn-border p-6 shadow-[rgba(32,32,37,0.05)_0px_3px_5px] hover:shadow-[rgba(8,8,8,0.05)_0px_3px_5px_5px] hover:border-bn-yellow/30 transition-all">
+                  {/* Top row: time + league + status */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      {g.game_time && (
+                        <span className="text-bn-ink font-bold text-sm tabular-nums">{g.game_time}</span>
+                      )}
+                      {g.location && <span className="text-bn-slate text-xs">{g.location}</span>}
+                    </div>
+                    {leagueName && (
+                      <span className="text-bn-muted text-xs">{leagueName}</span>
+                    )}
+                    {isCompleted && (
+                      <span className="text-bn-slate text-xs font-bold tracking-wider">FINAL</span>
+                    )}
+                  </div>
+
+                  {/* Score row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <span className={`font-bold text-lg ${isCompleted && homeWin ? 'text-bn-ink' : isCompleted ? 'text-bn-slate' : 'text-bn-ink'}`}>
+                        {g.home_squad_name}
+                      </span>
+                      {isCompleted && homeWin && <span className="text-bn-green text-xs font-bold">勝</span>}
+                    </div>
+
+                    <div className="flex items-center gap-4 px-8">
+                      {isCompleted ? (
                         <>
-                          <span className="text-bn-border">|</span>
-                          <span className="text-bn-yellow text-xs font-semibold">{gameCount} 場</span>
+                          <span className={`text-4xl font-black tabular-nums ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_score}</span>
+                          <span className="text-bn-border text-xl">-</span>
+                          <span className={`text-4xl font-black tabular-nums ${awayWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.away_score}</span>
                         </>
+                      ) : (
+                        <span className="text-bn-yellow text-sm font-semibold">即將開始</span>
                       )}
                     </div>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="bg-bn-ink py-8">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-8 text-center">
-          <p className="text-bn-steel text-xs">EMPOWER BASKETBALL &copy; 2026</p>
-        </div>
-      </footer>
+                    <div className="flex items-center gap-3 flex-1 justify-end">
+                      {isCompleted && awayWin && <span className="text-bn-green text-xs font-bold">勝</span>}
+                      <span className={`font-bold text-lg ${isCompleted && awayWin ? 'text-bn-ink' : isCompleted ? 'text-bn-slate' : 'text-bn-ink'}`}>
+                        {g.away_squad_name}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+
+              if (isCompleted) {
+                return <Link key={g.id} href={`/games/${g.id}`} className="block">{card}</Link>
+              }
+              return <div key={g.id}>{card}</div>
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
