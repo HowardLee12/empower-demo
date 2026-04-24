@@ -20,7 +20,6 @@ interface EditingGame { id: string | null; home_squad_id: string; away_squad_id:
 interface EditingLeague { id: string | null; name: string; region: string; season: string }
 interface EditingOrg { id: string | null; name: string; short_name: string }
 interface EditingSquad { id: string | null; org_id: string; name: string; age_group: string }
-interface EditingPlayer { id: string | null; squad_id: string; number: string; name: string }
 
 type Tab = 'games' | 'leagues' | 'teams' | 'players'
 const ADMIN_PASSWORD = 'empower2026'
@@ -53,7 +52,6 @@ export default function ManagementPage() {
   const [editingLeague, setEditingLeague] = useState<EditingLeague | null>(null)
   const [editingOrg, setEditingOrg] = useState<EditingOrg | null>(null)
   const [editingSquad, setEditingSquad] = useState<EditingSquad | null>(null)
-  const [editingPlayer, setEditingPlayer] = useState<EditingPlayer | null>(null)
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null)
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
@@ -166,15 +164,6 @@ export default function ManagementPage() {
     showToast('已刪除'); await reload()
   }
 
-  // --- Player CRUD ---
-  const savePlayer = async () => {
-    if (!editingPlayer?.name.trim() || !editingPlayer?.squad_id) return
-    if (editingPlayer.id) await supabase.from('sb_players').update({ number: editingPlayer.number, name: editingPlayer.name }).eq('id', editingPlayer.id)
-    else await supabase.from('sb_players').insert({ squad_id: editingPlayer.squad_id, number: editingPlayer.number, name: editingPlayer.name })
-    setEditingPlayer(null); showToast('已儲存'); await reload()
-  }
-  const deletePlayer = async (id: string) => { await supabase.from('sb_players').delete().eq('id', id); showToast('已刪除'); await reload() }
-
   // --- Global Player CRUD (independent of squads) ---
   const saveGlobalPlayer = async () => {
     if (!editingGlobalPlayer?.name.trim()) return
@@ -203,7 +192,6 @@ export default function ManagementPage() {
   const inputClass = 'bg-bn-snow border border-bn-border rounded-[8px] px-4 py-2.5 text-bn-ink text-sm placeholder:text-bn-slate focus:outline-none focus:border-bn-ink transition-colors'
 
   const orgSquads = squads.filter((s) => s.org_id === selectedOrgId)
-  const squadPlayers = players.filter((p) => p.squad_id === selectedSquadId)
 
   // --- Login ---
   if (!authed) {
@@ -256,10 +244,10 @@ export default function ManagementPage() {
         {/* Tabs */}
         <div className="flex items-center gap-2 mb-6">
           {([
-            { key: 'games' as Tab, label: '賽程管理' },
-            { key: 'leagues' as Tab, label: '賽事管理' },
             { key: 'teams' as Tab, label: '隊伍管理' },
             { key: 'players' as Tab, label: '球員管理' },
+            { key: 'leagues' as Tab, label: '賽事管理' },
+            { key: 'games' as Tab, label: '賽程管理' },
           ]).map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-5 py-2.5 rounded-[6px] text-sm font-semibold transition-colors ${tab === t.key ? 'bg-bn-yellow text-bn-ink' : 'bg-white text-bn-secondary hover:bg-bn-border/40 border border-bn-border'}`}>
@@ -467,7 +455,8 @@ export default function ManagementPage() {
                 ) : (() => {
                   const rosterEntries = leagueRosters.filter((r) => r.league_id === selectedLeagueId && r.squad_id === selectedLeagueSquadId)
                   const rosterPlayerIds = new Set(rosterEntries.map((r) => r.player_id))
-                  const squadAllPlayers = players.filter((p) => p.squad_id === selectedLeagueSquadId)
+                  const squadMemberIds = new Set(squadPlayerLinks.filter((sp) => sp.squad_id === selectedLeagueSquadId).map((sp) => sp.player_id))
+                  const squadAllPlayers = players.filter((p) => squadMemberIds.has(p.id))
                   const availablePlayers = squadAllPlayers.filter((p) => !rosterPlayerIds.has(p.id))
                   return (
                     <div>
@@ -596,43 +585,35 @@ export default function ManagementPage() {
                 )}
               </div>
 
-              {/* Column 3: Players */}
+              {/* Column 3: Squad Members (read-only) */}
               <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                <div className="px-5 py-3 border-b border-bn-border flex items-center justify-between bg-bn-snow">
-                  <h2 className="text-bn-ink font-bold text-sm">球員 {selectedSquadId ? `(${squadPlayers.length})` : ''}</h2>
-                  {selectedSquadId && <button onClick={() => setEditingPlayer({ id: null, squad_id: selectedSquadId, number: '', name: '' })} className="text-bn-yellow text-xs font-semibold hover:text-bn-active transition-colors">+ 新增</button>}
+                <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
+                  <h2 className="text-bn-ink font-bold text-sm">
+                    {selectedSquadId ? `${squads.find((s) => s.id === selectedSquadId)?.name} 球員` : '小隊球員'}
+                  </h2>
                 </div>
-                {editingPlayer && (
-                  <div className="p-4 border-b border-bn-border bg-bn-snow/50 space-y-2">
-                    <div className="flex gap-2">
-                      <input type="text" placeholder="#" value={editingPlayer.number} onChange={(e) => setEditingPlayer({ ...editingPlayer, number: e.target.value })} className={`${inputClass} w-16 text-center`} />
-                      <input type="text" placeholder="球員姓名" value={editingPlayer.name} onChange={(e) => setEditingPlayer({ ...editingPlayer, name: e.target.value })} className={`${inputClass} flex-1`} autoFocus />
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={savePlayer} className="px-4 py-2 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">儲存</button>
-                      <button onClick={() => setEditingPlayer(null)} className="px-4 py-2 rounded-[6px] text-xs font-semibold text-bn-slate hover:text-bn-ink transition-colors">取消</button>
-                    </div>
-                  </div>
-                )}
                 {!selectedSquadId ? (
                   <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇左側小隊</p>
-                ) : (
-                  <div className="divide-y divide-bn-border/50">
-                    {squadPlayers.map((player) => (
-                      <div key={player.id} className="px-5 py-3.5 flex items-center justify-between group hover:bg-bn-snow transition-colors">
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono font-bold text-bn-yellow text-xs w-8 text-center">#{player.number}</span>
-                          <span className="text-bn-ink text-sm font-medium">{player.name}</span>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => setEditingPlayer({ id: player.id, squad_id: player.squad_id ?? '', number: player.number, name: player.name })} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
-                          <button onClick={() => deletePlayer(player.id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
-                        </div>
+                ) : (() => {
+                  const memberIds = squadPlayerLinks.filter((sp) => sp.squad_id === selectedSquadId).map((sp) => sp.player_id)
+                  const members = players.filter((p) => memberIds.includes(p.id))
+                  return (
+                    <div>
+                      <div className="divide-y divide-bn-border/50">
+                        {members.map((p) => (
+                          <div key={p.id} className="px-5 py-3.5 flex items-center gap-3">
+                            <span className="font-mono font-bold text-bn-yellow text-xs w-8 text-center">#{p.number}</span>
+                            <span className="text-bn-ink text-sm font-medium">{p.name}</span>
+                          </div>
+                        ))}
+                        {members.length === 0 && <p className="px-5 py-4 text-bn-slate text-xs text-center">尚無球員</p>}
                       </div>
-                    ))}
-                    {squadPlayers.length === 0 && <p className="px-5 py-8 text-bn-slate text-xs text-center">點擊上方新增球員</p>}
-                  </div>
-                )}
+                      <div className="border-t border-bn-border px-5 py-3">
+                        <p className="text-bn-muted text-xs">球員分配請到「球員管理」tab 操作</p>
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           </div>
