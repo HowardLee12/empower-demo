@@ -35,7 +35,7 @@ export function DateStrip({ selectedDate, gameDates, onSelectDate }: DateStripPr
     <div className="flex items-center gap-1">
       <button
         onClick={() => shift(-7)}
-        className="w-8 h-10 flex items-center justify-center text-bn-slate hover:text-bn-ink transition-colors"
+        className="w-8 h-10 flex items-center justify-center text-white/30 hover:text-white transition-colors"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -60,17 +60,17 @@ export function DateStrip({ selectedDate, gameDates, onSelectDate }: DateStripPr
                 isSelected
                   ? 'bg-bn-yellow text-bn-ink'
                   : isToday
-                    ? 'bg-bn-yellow/10 text-bn-yellow'
-                    : 'hover:bg-bn-snow text-bn-secondary'
+                    ? 'bg-bn-yellow/20 text-bn-yellow'
+                    : 'hover:bg-white/10 text-white/50'
               }`}
             >
-              <span className={`text-[10px] font-medium ${isSelected ? 'text-bn-ink/60' : 'text-bn-slate'}`}>
+              <span className={`text-[10px] font-medium ${isSelected ? 'text-bn-ink/60' : 'text-white/30'}`}>
                 {weekday}
               </span>
               <span className="text-lg font-bold tabular-nums leading-tight">
                 {day}
               </span>
-              <span className={`text-[10px] ${isSelected ? 'text-bn-ink/50' : 'text-bn-slate'}`}>
+              <span className={`text-[10px] ${isSelected ? 'text-bn-ink/50' : 'text-white/20'}`}>
                 {month}月
               </span>
               {hasGame && !isSelected && (
@@ -86,7 +86,7 @@ export function DateStrip({ selectedDate, gameDates, onSelectDate }: DateStripPr
 
       <button
         onClick={() => shift(7)}
-        className="w-8 h-10 flex items-center justify-center text-bn-slate hover:text-bn-ink transition-colors"
+        className="w-8 h-10 flex items-center justify-center text-white/30 hover:text-white transition-colors"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

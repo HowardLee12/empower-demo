@@ -86,27 +86,22 @@ export default function Home() {
     <div className="min-h-screen bg-bn-snow">
       <Navbar />
 
-      {/* Hero */}
-      <div className="relative pt-16 pb-6 overflow-hidden">
+      {/* Header: Hero + Tabs + DateStrip combined */}
+      <div className="relative pt-16 overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 bg-bn-dark" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-bn-yellow/8 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[200px] bg-bn-yellow/5 blur-[100px] rounded-full" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-bn-yellow/8 blur-[100px] rounded-full" />
         {/* Logo watermark */}
-        <div className="absolute right-[-60px] top-1/2 -translate-y-1/2 w-[400px] h-[400px] opacity-[0.04] pointer-events-none">
+        <div className="absolute right-[-40px] top-1/2 -translate-y-1/2 w-[300px] h-[300px] opacity-[0.04] pointer-events-none">
           <img src="/empower-logo.svg" alt="" className="w-full h-full object-contain" />
         </div>
 
         <div className="relative max-w-[1200px] mx-auto px-4 sm:px-8">
-          {/* Title area */}
-          <div className="text-center py-8">
-            <div className="inline-block mb-3">
-              <div className="w-12 h-1 bg-bn-yellow rounded-full mx-auto mb-4" />
-              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                日程<span className="text-bn-yellow">・</span>結果
-              </h1>
-            </div>
-            <p className="text-white/30 text-sm">EMPOWER BASKETBALL - Schedule & Results</p>
+          {/* Title */}
+          <div className="text-center pt-5 pb-4">
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              日程<span className="text-bn-yellow">・</span>結果
+            </h1>
           </div>
 
           {/* Event Type Tabs */}
@@ -148,22 +143,20 @@ export default function Home() {
               })
             })}
           </div>
-        </div>
-      </div>
 
-      {/* Date Strip */}
-      <div className="bg-white border-b border-bn-border">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-3">
-          <DateStrip
-            selectedDate={selectedDate}
-            gameDates={gameDates}
-            onSelectDate={setSelectedDate}
-          />
+          {/* Date Strip inside dark header */}
+          <div className="pb-4 pt-2">
+            <DateStrip
+              selectedDate={selectedDate}
+              gameDates={gameDates}
+              onSelectDate={setSelectedDate}
+            />
+          </div>
         </div>
       </div>
 
       {/* Game Cards */}
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-5">
         {filteredGames.length === 0 ? (
           <div className="rounded-[12px] bg-white border border-bn-border p-16 text-center">
             <div className="w-16 h-16 rounded-full bg-bn-snow mx-auto mb-4 flex items-center justify-center">
@@ -173,7 +166,7 @@ export default function Home() {
             <p className="text-bn-border text-xs mt-1">No games scheduled</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {filteredGames.map((g) => {
               const isCompleted = g.status === 'completed'
               const homeWin = g.home_score > g.away_score
