@@ -84,7 +84,9 @@ function StatsTable({ players, teamName, teamId }: { players: PlayerStatRecord[]
               return (
                 <tr key={p.id} className="border-b border-bn-border/50 hover:bg-bn-snow transition-colors">
                   <td className="py-3 px-3 font-mono font-bold text-bn-yellow text-xs">{p.player_number}</td>
-                  <td className="py-3 px-3 font-semibold text-bn-ink whitespace-nowrap">{p.player_name}</td>
+                  <td className="py-3 px-3 font-semibold whitespace-nowrap">
+                    <Link href={`/players/${p.player_id}`} className="text-bn-ink hover:text-bn-yellow transition-colors">{p.player_name}</Link>
+                  </td>
                   <td className="py-3 px-3 text-center tabular-nums text-bn-slate text-xs">{fmtMin(p.playing_seconds)}</td>
                   <td className="py-3 px-3 text-center font-bold text-bn-ink tabular-nums">{p.points}</td>
                   <td className="py-3 px-3 text-center tabular-nums text-bn-secondary whitespace-nowrap text-xs">{p.fg_made}/{p.fg_attempted} <span className="text-bn-slate">{pct(p.fg_made, p.fg_attempted)}</span></td>

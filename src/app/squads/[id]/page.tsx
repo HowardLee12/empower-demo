@@ -28,7 +28,7 @@ function pct(made: number, attempted: number): string {
 }
 
 interface AggPlayer {
-  name: string; number: string; games: number
+  id: string; name: string; number: string; games: number
   pts: number; fgm: number; fga: number; tpm: number; tpa: number
   ftm: number; fta: number; reb: number; ast: number; stl: number
   blk: number; tov: number; fouls: number; secs: number; pm: number
@@ -113,7 +113,7 @@ export default function SquadDetailPage() {
         const rosterEntry = rosters.find((r) => r.league_id === league.id && r.player_id === pid)
         if (p) {
           playerMap.set(pid, {
-            name: p.name, number: rosterEntry?.jersey_number || p.number,
+            id: pid, name: p.name, number: rosterEntry?.jersey_number || p.number,
             games: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0,
             ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0,
             tov: 0, fouls: 0, secs: 0, pm: 0,
@@ -225,7 +225,9 @@ export default function SquadDetailPage() {
                           return (
                             <tr key={p.name + p.number} className="border-b border-bn-border/50 hover:bg-bn-snow transition-colors">
                               <td className="py-3 px-3 font-mono font-bold text-bn-yellow text-xs">{p.number}</td>
-                              <td className="py-3 px-3 font-semibold text-bn-ink">{p.name}</td>
+                              <td className="py-3 px-3 font-semibold">
+                                <Link href={`/players/${p.id}`} className="text-bn-ink hover:text-bn-yellow transition-colors">{p.name}</Link>
+                              </td>
                               <td className="py-3 px-3 text-center tabular-nums text-bn-slate">{p.games}</td>
                               <td className="py-3 px-3 text-center tabular-nums font-bold text-bn-ink">{(p.pts / g).toFixed(1)}</td>
                               <td className="py-3 px-3 text-center tabular-nums text-bn-secondary whitespace-nowrap">
