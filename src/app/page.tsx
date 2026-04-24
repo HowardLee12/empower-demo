@@ -183,25 +183,27 @@ export default function Home() {
                   {/* Left accent bar */}
                   <div className={`absolute left-0 top-0 bottom-0 w-1 ${isCompleted ? 'bg-bn-border' : 'bg-bn-yellow'}`} />
 
-                  {/* Top row */}
-                  <div className="flex items-center justify-between mb-5">
+                  {/* Top row: time + location + status */}
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-3">
                       {displayTime && (
                         <span className="text-bn-ink font-bold text-sm tabular-nums">{displayTime}</span>
                       )}
                       {g.location && (
-                        <span className="text-bn-slate text-xs px-2 py-0.5 bg-bn-snow rounded">{g.location}</span>
+                        <span className="text-bn-slate text-xs">{g.location}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3">
-                      {leagueName && (
-                        <span className="text-xs font-medium text-bn-yellow bg-bn-yellow/10 px-2.5 py-1 rounded-[50px]">{leagueName}</span>
-                      )}
-                      {isCompleted && (
-                        <span className="text-bn-slate text-[10px] font-bold tracking-[0.15em]">FINAL</span>
-                      )}
-                    </div>
+                    {isCompleted && (
+                      <span className="text-bn-slate text-[10px] font-bold tracking-[0.15em]">FINAL</span>
+                    )}
                   </div>
+
+                  {/* League name centered */}
+                  {leagueName && (
+                    <div className="text-center mb-3">
+                      <span className="text-bn-ink/40 text-[11px] font-semibold tracking-wider uppercase">{leagueName}</span>
+                    </div>
+                  )}
 
                   {/* Score row */}
                   <div className="flex items-center">
