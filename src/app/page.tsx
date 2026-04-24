@@ -201,7 +201,7 @@ export default function Home() {
                   {/* League name centered */}
                   {leagueName && (
                     <div className="text-center mb-3">
-                      <span className="text-bn-ink/40 text-[11px] font-semibold tracking-wider uppercase">{leagueName}</span>
+                      <span className="text-bn-ink/30 text-sm font-bold tracking-wide">{leagueName}</span>
                     </div>
                   )}
 
@@ -227,8 +227,9 @@ export default function Home() {
                           </div>
                         </>
                       ) : (
-                        <div className="flex flex-col items-center">
-                          <span className="text-bn-yellow text-lg font-black tracking-wider">VS</span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-bn-ink text-lg font-black tracking-wider">VS</span>
+                          <span className="text-bn-yellow text-xs font-semibold">即將開始</span>
                         </div>
                       )}
                     </div>
