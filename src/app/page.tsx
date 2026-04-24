@@ -87,11 +87,27 @@ export default function Home() {
       <Navbar />
 
       {/* Hero */}
-      <div className="bg-bn-dark pt-16 pb-6">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white text-center py-6">
-            日程・結果
-          </h1>
+      <div className="relative pt-16 pb-6 overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 bg-bn-dark" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-bn-yellow/8 blur-[120px] rounded-full" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[200px] bg-bn-yellow/5 blur-[100px] rounded-full" />
+        {/* Logo watermark */}
+        <div className="absolute right-[-60px] top-1/2 -translate-y-1/2 w-[400px] h-[400px] opacity-[0.04] pointer-events-none">
+          <img src="/empower-logo.svg" alt="" className="w-full h-full object-contain" />
+        </div>
+
+        <div className="relative max-w-[1200px] mx-auto px-4 sm:px-8">
+          {/* Title area */}
+          <div className="text-center py-8">
+            <div className="inline-block mb-3">
+              <div className="w-12 h-1 bg-bn-yellow rounded-full mx-auto mb-4" />
+              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                日程<span className="text-bn-yellow">・</span>結果
+              </h1>
+            </div>
+            <p className="text-white/30 text-sm">EMPOWER BASKETBALL - Schedule & Results</p>
+          </div>
 
           {/* Event Type Tabs */}
           <div className="flex items-center justify-center gap-2 flex-wrap mb-6">
