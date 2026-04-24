@@ -113,25 +113,39 @@ export default function Home() {
           <div className="flex items-center justify-center gap-2 flex-wrap mb-6">
             <button
               onClick={() => setSelectedLeagueId(null)}
-              className={`px-4 py-2 rounded-[6px] text-sm font-semibold transition-colors ${
-                !selectedLeagueId ? 'bg-bn-yellow text-bn-ink' : 'bg-white/10 text-white/70 hover:bg-white/20'
+              className={`px-5 py-2.5 rounded-[50px] text-sm font-semibold transition-all ${
+                !selectedLeagueId
+                  ? 'bg-bn-yellow text-bn-ink shadow-[0_0_16px_rgba(240,185,11,0.3)]'
+                  : 'bg-white/[0.08] text-white/60 hover:bg-white/[0.15] hover:text-white border border-white/[0.06]'
               }`}
             >
               全部
+              <span className={`ml-1.5 text-xs ${!selectedLeagueId ? 'text-bn-ink/50' : 'text-white/30'}`}>
+                {games.length}
+              </span>
             </button>
             {eventTypes.map((type) => {
               const typeLeagues = leaguesByType.get(type) ?? []
-              return typeLeagues.map((league) => (
-                <button
-                  key={league.id}
-                  onClick={() => setSelectedLeagueId(selectedLeagueId === league.id ? null : league.id)}
-                  className={`px-4 py-2 rounded-[6px] text-sm font-semibold transition-colors ${
-                    selectedLeagueId === league.id ? 'bg-bn-yellow text-bn-ink' : 'bg-white/10 text-white/70 hover:bg-white/20'
-                  }`}
-                >
-                  {league.name}
-                </button>
-              ))
+              return typeLeagues.map((league) => {
+                const count = games.filter((g) => g.league_id === league.id).length
+                const isActive = selectedLeagueId === league.id
+                return (
+                  <button
+                    key={league.id}
+                    onClick={() => setSelectedLeagueId(isActive ? null : league.id)}
+                    className={`px-5 py-2.5 rounded-[50px] text-sm font-semibold transition-all ${
+                      isActive
+                        ? 'bg-bn-yellow text-bn-ink shadow-[0_0_16px_rgba(240,185,11,0.3)]'
+                        : 'bg-white/[0.08] text-white/60 hover:bg-white/[0.15] hover:text-white border border-white/[0.06]'
+                    }`}
+                  >
+                    {league.name}
+                    {count > 0 && (
+                      <span className={`ml-1.5 text-xs ${isActive ? 'text-bn-ink/50' : 'text-white/30'}`}>{count}</span>
+                    )}
+                  </button>
+                )
+              })
             })}
           </div>
         </div>
@@ -151,59 +165,81 @@ export default function Home() {
       {/* Game Cards */}
       <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8">
         {filteredGames.length === 0 ? (
-          <div className="rounded-[12px] bg-white border border-bn-border p-12 text-center">
-            <p className="text-bn-slate text-sm">本日無賽事</p>
+          <div className="rounded-[12px] bg-white border border-bn-border p-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-bn-snow mx-auto mb-4 flex items-center justify-center">
+              <img src="/empower-logo.svg" alt="" className="w-8 h-8 opacity-20" />
+            </div>
+            <p className="text-bn-slate text-sm font-medium">本日無賽事</p>
+            <p className="text-bn-border text-xs mt-1">No games scheduled</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredGames.map((g) => {
               const isCompleted = g.status === 'completed'
               const homeWin = g.home_score > g.away_score
               const awayWin = g.away_score > g.home_score
               const leagueName = leagues.find((l) => l.id === g.league_id)?.name
+              const displayTime = g.game_time?.substring(0, 5)
 
               const card = (
-                <div className="rounded-[12px] bg-white border border-bn-border p-6 shadow-[rgba(32,32,37,0.05)_0px_3px_5px] hover:shadow-[rgba(8,8,8,0.05)_0px_3px_5px_5px] hover:border-bn-yellow/30 transition-all">
-                  {/* Top row: time + league + status */}
-                  <div className="flex items-center justify-between mb-4">
+                <div className={`relative rounded-[12px] bg-white border p-6 transition-all overflow-hidden ${
+                  isCompleted
+                    ? 'border-bn-border shadow-[rgba(32,32,37,0.04)_0px_2px_8px] hover:shadow-[rgba(240,185,11,0.08)_0px_4px_16px] hover:border-bn-yellow/30'
+                    : 'border-bn-yellow/30 shadow-[rgba(240,185,11,0.05)_0px_2px_12px]'
+                }`}>
+                  {/* Left accent bar */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${isCompleted ? 'bg-bn-border' : 'bg-bn-yellow'}`} />
+
+                  {/* Top row */}
+                  <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
-                      {g.game_time && (
-                        <span className="text-bn-ink font-bold text-sm tabular-nums">{g.game_time}</span>
+                      {displayTime && (
+                        <span className="text-bn-ink font-bold text-sm tabular-nums">{displayTime}</span>
                       )}
-                      {g.location && <span className="text-bn-slate text-xs">{g.location}</span>}
+                      {g.location && (
+                        <span className="text-bn-slate text-xs px-2 py-0.5 bg-bn-snow rounded">{g.location}</span>
+                      )}
                     </div>
-                    {leagueName && (
-                      <span className="text-bn-muted text-xs">{leagueName}</span>
-                    )}
-                    {isCompleted && (
-                      <span className="text-bn-slate text-xs font-bold tracking-wider">FINAL</span>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {leagueName && (
+                        <span className="text-xs font-medium text-bn-yellow bg-bn-yellow/10 px-2.5 py-1 rounded-[50px]">{leagueName}</span>
+                      )}
+                      {isCompleted && (
+                        <span className="text-bn-slate text-[10px] font-bold tracking-[0.15em]">FINAL</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Score row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <span className={`font-bold text-lg ${isCompleted && homeWin ? 'text-bn-ink' : isCompleted ? 'text-bn-slate' : 'text-bn-ink'}`}>
+                  <div className="flex items-center">
+                    <div className="flex-1 flex items-center gap-3">
+                      <span className={`font-bold text-lg ${isCompleted && !homeWin ? 'text-bn-slate' : 'text-bn-ink'}`}>
                         {g.home_squad_name}
                       </span>
-                      {isCompleted && homeWin && <span className="text-bn-green text-xs font-bold">勝</span>}
                     </div>
 
                     <div className="flex items-center gap-4 px-8">
                       {isCompleted ? (
                         <>
-                          <span className={`text-4xl font-black tabular-nums ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_score}</span>
-                          <span className="text-bn-border text-xl">-</span>
-                          <span className={`text-4xl font-black tabular-nums ${awayWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.away_score}</span>
+                          <div className="text-center">
+                            <span className={`text-4xl font-black tabular-nums ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_score}</span>
+                            {homeWin && <div className="w-4 h-0.5 bg-bn-yellow rounded-full mx-auto mt-1" />}
+                          </div>
+                          <span className="text-bn-border/60 text-lg font-light">:</span>
+                          <div className="text-center">
+                            <span className={`text-4xl font-black tabular-nums ${awayWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.away_score}</span>
+                            {awayWin && <div className="w-4 h-0.5 bg-bn-yellow rounded-full mx-auto mt-1" />}
+                          </div>
                         </>
                       ) : (
-                        <span className="text-bn-yellow text-sm font-semibold">即將開始</span>
+                        <div className="flex flex-col items-center">
+                          <span className="text-bn-yellow text-lg font-black tracking-wider">VS</span>
+                        </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 flex-1 justify-end">
-                      {isCompleted && awayWin && <span className="text-bn-green text-xs font-bold">勝</span>}
-                      <span className={`font-bold text-lg ${isCompleted && awayWin ? 'text-bn-ink' : isCompleted ? 'text-bn-slate' : 'text-bn-ink'}`}>
+                    <div className="flex-1 flex items-center gap-3 justify-end">
+                      <span className={`font-bold text-lg ${isCompleted && !awayWin ? 'text-bn-slate' : 'text-bn-ink'}`}>
                         {g.away_squad_name}
                       </span>
                     </div>
