@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { PlayerPickerModal } from '@/components/PlayerPickerModal'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
@@ -56,6 +57,7 @@ export default function ManagementPage() {
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null)
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
   const [selectedLeagueSquadId, setSelectedLeagueSquadId] = useState<string | null>(null)
+  const [showRosterPicker, setShowRosterPicker] = useState(false)
   const [toast, setToast] = useState('')
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000) }
@@ -478,21 +480,26 @@ export default function ManagementPage() {
                       </div>
                       {availablePlayers.length > 0 && (
                         <div className="border-t border-bn-border p-4">
-                          <p className="text-bn-secondary text-xs font-semibold mb-2">新增球員到名單</p>
-                          <div className="flex gap-2">
-                            <select id="add-roster-player" className={`${inputClass} flex-1`} defaultValue="">
-                              <option value="" disabled>-- 選擇球員 --</option>
-                              {availablePlayers.map((p) => <option key={p.id} value={p.id}>#{p.number} {p.name}</option>)}
-                            </select>
-                            <button onClick={() => {
-                              const el = document.getElementById('add-roster-player') as HTMLSelectElement
-                              if (el?.value) {
-                                const p = players.find((pl) => pl.id === el.value)
-                                addPlayerToRoster(selectedLeagueId!, selectedLeagueSquadId!, el.value, p?.number ?? '')
-                                el.value = ''
-                              }
-                            }} className="px-4 py-2.5 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">加入</button>
-                          </div>
+                          <button
+                            onClick={() => setShowRosterPicker(true)}
+                            className="w-full py-2.5 rounded-[6px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors"
+                          >
+                            + 新增球員到名單 ({availablePlayers.length} 位可選)
+                          </button>
+                          {showRosterPicker && (
+                            <PlayerPickerModal
+                              players={availablePlayers}
+                              title={`加入 ${squads.find((s) => s.id === selectedLeagueSquadId)?.name ?? ''} 參賽名單`}
+                              onClose={() => setShowRosterPicker(false)}
+                              onConfirm={async (ids) => {
+                                for (const pid of ids) {
+                                  const p = players.find((pl) => pl.id === pid)
+                                  await addPlayerToRoster(selectedLeagueId!, selectedLeagueSquadId!, pid, p?.number ?? '')
+                                }
+                                setShowRosterPicker(false)
+                              }}
+                            />
+                          )}
                           {squadAllPlayers.length === 0 && (
                             <p className="text-bn-muted text-[10px] mt-2">此小隊尚無球員，請先到「隊伍管理」新增</p>
                           )}
