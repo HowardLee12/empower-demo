@@ -101,6 +101,7 @@ export default function ManagementGamePage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [quarterMinutes, setQuarterMinutes] = useState(QUARTER_MINUTES)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Load game + players from DB
@@ -184,8 +185,8 @@ export default function ManagementGamePage() {
   }, [])
 
   const resetTimer = useCallback(() => {
-    setGame((prev) => prev ? { ...prev, isRunning: false, timeRemaining: QUARTER_MINUTES * 60 } : prev)
-  }, [])
+    setGame((prev) => prev ? { ...prev, isRunning: false, timeRemaining: quarterMinutes * 60 } : prev)
+  }, [quarterMinutes])
 
   const nextQuarter = useCallback(() => {
     setGame((prev) => {
@@ -194,11 +195,16 @@ export default function ManagementGamePage() {
       const needsOT = next > 4
       return {
         ...prev, quarter: next, isRunning: false,
-        timeRemaining: (needsOT ? 5 : QUARTER_MINUTES) * 60,
+        timeRemaining: (needsOT ? 5 : quarterMinutes) * 60,
         homeTeam: needsOT ? { ...prev.homeTeam, quarterScores: [...prev.homeTeam.quarterScores, 0] } : prev.homeTeam,
         awayTeam: needsOT ? { ...prev.awayTeam, quarterScores: [...prev.awayTeam.quarterScores, 0] } : prev.awayTeam,
       }
     })
+  }, [quarterMinutes])
+
+  const handleSetQuarterMinutes = useCallback((minutes: number) => {
+    setQuarterMinutes(minutes)
+    setGame((prev) => prev ? { ...prev, timeRemaining: minutes * 60 } : prev)
   }, [])
 
   const selectPlayer = useCallback((teamId: string, playerId: string) => {
@@ -357,7 +363,9 @@ export default function ManagementGamePage() {
         <ScoreboardHeader
           homeTeam={game.homeTeam} awayTeam={game.awayTeam}
           quarter={game.quarter} timeRemaining={game.timeRemaining} isRunning={game.isRunning}
+          quarterMinutes={quarterMinutes}
           onToggleTimer={toggleTimer} onNextQuarter={nextQuarter} onResetTimer={resetTimer}
+          onSetQuarterMinutes={handleSetQuarterMinutes}
         />
         <div className="grid lg:grid-cols-[1fr_280px] gap-4">
           <div className="space-y-4">

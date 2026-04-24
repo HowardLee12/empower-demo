@@ -121,7 +121,7 @@ export default function Home() {
                   <p className="text-bn-slate text-sm">No Event Today</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
                   {dailyGames.map((g) => {
                     const isCompleted = g.status === 'completed'
                     const homeWin = g.home_score > g.away_score

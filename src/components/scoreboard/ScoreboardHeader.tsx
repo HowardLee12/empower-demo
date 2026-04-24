@@ -7,10 +7,12 @@ interface ScoreboardHeaderProps {
   awayTeam: Team
   quarter: number
   timeRemaining: number
+  quarterMinutes: number
   isRunning: boolean
   onToggleTimer: () => void
   onNextQuarter: () => void
   onResetTimer: () => void
+  onSetQuarterMinutes: (minutes: number) => void
 }
 
 export function ScoreboardHeader({
@@ -18,10 +20,12 @@ export function ScoreboardHeader({
   awayTeam,
   quarter,
   timeRemaining,
+  quarterMinutes,
   isRunning,
   onToggleTimer,
   onNextQuarter,
   onResetTimer,
+  onSetQuarterMinutes,
 }: ScoreboardHeaderProps) {
   const homeScore = totalScore(homeTeam)
   const awayScore = totalScore(awayTeam)
@@ -83,6 +87,26 @@ export function ScoreboardHeader({
                 下一節
               </button>
             </div>
+            {/* Quarter minutes adjuster */}
+            {!isRunning && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-white/30 text-[10px]">每節</span>
+                <button
+                  onClick={() => onSetQuarterMinutes(Math.max(1, quarterMinutes - 1))}
+                  className="w-6 h-6 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-white/50 text-xs font-bold transition-all"
+                >
+                  -
+                </button>
+                <span className="text-white/70 text-xs font-bold tabular-nums w-8 text-center">{quarterMinutes}</span>
+                <button
+                  onClick={() => onSetQuarterMinutes(Math.min(20, quarterMinutes + 1))}
+                  className="w-6 h-6 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-white/50 text-xs font-bold transition-all"
+                >
+                  +
+                </button>
+                <span className="text-white/30 text-[10px]">分鐘</span>
+              </div>
+            )}
           </div>
 
           {/* Away Team */}
