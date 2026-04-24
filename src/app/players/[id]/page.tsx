@@ -224,14 +224,14 @@ export default function PlayerDetailPage() {
         {/* Per-League Averages */}
         {leagueAverages.size > 0 && (
           <section>
-            <h2 className="text-xl font-bold text-bn-ink mb-1">各聯盟平均數據</h2>
+            <h2 className="text-xl font-bold text-bn-ink mb-1">各賽事平均數據</h2>
             <p className="text-bn-slate text-sm mb-4">Season Averages</p>
             <div className="rounded-[12px] bg-white border border-bn-border shadow-[rgba(32,32,37,0.05)_0px_3px_5px] overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-bn-border text-bn-slate text-xs">
-                      <th className="py-3 px-4 text-left font-medium">聯盟</th>
+                      <th className="py-3 px-4 text-left font-medium">賽事</th>
                       <th className="py-3 px-4 text-center font-medium">GP</th>
                       <th className="py-3 px-4 text-center font-medium text-bn-yellow">PPG</th>
                       <th className="py-3 px-4 text-center font-medium">RPG</th>

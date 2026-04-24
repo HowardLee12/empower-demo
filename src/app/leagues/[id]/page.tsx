@@ -121,7 +121,7 @@ export default function LeagueDetailPage() {
   if (!league) {
     return (
       <div className="min-h-screen bg-bn-snow flex items-center justify-center">
-        <p className="text-bn-slate text-sm">找不到此聯盟</p>
+        <p className="text-bn-slate text-sm">找不到此賽事</p>
       </div>
     )
   }

@@ -175,7 +175,7 @@ export default function SquadDetailPage() {
       <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8 space-y-10">
         {leagues.length === 0 ? (
           <div className="rounded-[12px] bg-white border border-bn-border p-10 text-center">
-            <p className="text-bn-slate text-sm">此隊伍尚未參加任何聯盟</p>
+            <p className="text-bn-slate text-sm">此隊伍尚未參加任何賽事</p>
           </div>
         ) : (
           leagues.map((league) => {

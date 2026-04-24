@@ -59,12 +59,12 @@ export default function Home() {
   // Unique regions for tabs
   const regions = useMemo(() => {
     const set = new Set(leagues.map((l) => l.region))
-    return ['所有聯盟', ...set]
+    return ['所有賽事', ...set]
   }, [leagues])
 
   // Filtered leagues
   const filteredLeagues = useMemo(() => {
-    if (!selectedRegion || selectedRegion === '所有聯盟') return leagues
+    if (!selectedRegion || selectedRegion === '所有賽事') return leagues
     return leagues.filter((l) => l.region === selectedRegion)
   }, [leagues, selectedRegion])
 
@@ -93,7 +93,7 @@ export default function Home() {
       <div className="bg-bn-yellow pt-16">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8 text-center">
           <h1 className="text-3xl sm:text-4xl font-bold text-bn-ink">
-            EMPOWER LEAGUE
+            EMPOWER BASKETBALL
           </h1>
         </div>
       </div>
@@ -184,21 +184,21 @@ export default function Home() {
       {/* Leagues Section */}
       <section className="bg-white py-12 border-b border-bn-border">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-8">
-          <h2 className="text-2xl sm:text-[34px] font-bold text-bn-ink text-center mb-2">EMPOWER LEAGUES</h2>
-          <p className="text-bn-slate text-center mb-8">聯盟清單</p>
+          <h2 className="text-2xl sm:text-[34px] font-bold text-bn-ink text-center mb-2">EMPOWER EVENTS</h2>
+          <p className="text-bn-slate text-center mb-8">賽事一覽</p>
           <hr className="border-bn-ink w-16 mx-auto mb-8" />
 
           {/* Region Tabs */}
           <div className="flex flex-wrap gap-2 mb-8 justify-center">
             {regions.map((r) => {
-              const isActive = (!selectedRegion && r === '所有聯盟') || selectedRegion === r
-              const count = r === '所有聯盟'
+              const isActive = (!selectedRegion && r === '所有賽事') || selectedRegion === r
+              const count = r === '所有賽事'
                 ? leagues.length
                 : leagues.filter((l) => l.region === r).length
               return (
                 <button
                   key={r}
-                  onClick={() => setSelectedRegion(r === '所有聯盟' ? null : r)}
+                  onClick={() => setSelectedRegion(r === '所有賽事' ? null : r)}
                   className={`px-4 py-2 rounded-[6px] text-sm font-semibold transition-colors ${
                     isActive
                       ? 'bg-bn-yellow text-bn-ink'
@@ -217,7 +217,7 @@ export default function Home() {
           {/* League Grid */}
           {filteredLeagues.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-bn-slate text-sm">尚未建立聯盟</p>
+              <p className="text-bn-slate text-sm">尚未建立賽事</p>
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -252,7 +252,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-bn-ink py-8">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-8 text-center">
-          <p className="text-bn-steel text-xs">EMPOWER LEAGUE &copy; 2026</p>
+          <p className="text-bn-steel text-xs">EMPOWER BASKETBALL &copy; 2026</p>
         </div>
       </footer>
     </div>

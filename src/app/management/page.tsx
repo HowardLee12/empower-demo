@@ -226,7 +226,7 @@ export default function ManagementPage() {
         <div className="flex items-center gap-2 mb-6">
           {([
             { key: 'games' as Tab, label: '賽程管理' },
-            { key: 'leagues' as Tab, label: '聯盟管理' },
+            { key: 'leagues' as Tab, label: '賽事管理' },
             { key: 'teams' as Tab, label: '隊伍管理' },
           ]).map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -251,7 +251,7 @@ export default function ManagementPage() {
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">日期</label><input type="date" value={editingGame.game_date} onChange={(e) => setEditingGame({ ...editingGame, game_date: e.target.value })} className={`${inputClass} w-full`} /></div>
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">時間</label><input type="time" value={editingGame.game_time} onChange={(e) => setEditingGame({ ...editingGame, game_time: e.target.value })} className={`${inputClass} w-full`} /></div>
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">地點</label><input type="text" placeholder="比賽場地" value={editingGame.location} onChange={(e) => setEditingGame({ ...editingGame, location: e.target.value })} className={`${inputClass} w-full`} /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">聯盟</label><select value={editingGame.league_id} onChange={(e) => setEditingGame({ ...editingGame, league_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 不指定 --</option>{leagues.map((l) => <option key={l.id} value={l.id}>{l.region} - {l.name}</option>)}</select></div>
+                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">賽事</label><select value={editingGame.league_id} onChange={(e) => setEditingGame({ ...editingGame, league_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 不指定 --</option>{leagues.map((l) => <option key={l.id} value={l.id}>{l.region} - {l.name}</option>)}</select></div>
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">主隊</label><select value={editingGame.home_squad_id} onChange={(e) => setEditingGame({ ...editingGame, home_squad_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 選擇 --</option>{squads.map((s) => { const org = orgs.find((o) => o.id === s.org_id); return <option key={s.id} value={s.id}>{org?.short_name ?? org?.name} - {s.name}</option> })}</select></div>
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">客隊</label><select value={editingGame.away_squad_id} onChange={(e) => setEditingGame({ ...editingGame, away_squad_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 選擇 --</option>{squads.map((s) => { const org = orgs.find((o) => o.id === s.org_id); return <option key={s.id} value={s.id}>{org?.short_name ?? org?.name} - {s.name}</option> })}</select></div>
                 </div>
@@ -315,15 +315,15 @@ export default function ManagementPage() {
         {tab === 'leagues' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold text-bn-ink">聯盟管理</h1>
-              <button onClick={() => setEditingLeague({ id: null, name: '', region: '', season: '' })} className="px-5 py-2.5 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">+ 新增聯盟</button>
+              <h1 className="text-xl font-bold text-bn-ink">賽事管理</h1>
+              <button onClick={() => setEditingLeague({ id: null, name: '', region: '', season: '' })} className="px-5 py-2.5 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">+ 新增賽事</button>
             </div>
             {editingLeague && (
               <div className="rounded-[12px] bg-white border border-bn-yellow/30 p-6">
-                <h3 className="text-bn-ink font-bold text-sm mb-4">{editingLeague.id ? '編輯聯盟' : '新增聯盟'}</h3>
+                <h3 className="text-bn-ink font-bold text-sm mb-4">{editingLeague.id ? '編輯賽事' : '新增賽事'}</h3>
                 <div className="grid sm:grid-cols-3 gap-4 mb-4">
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">名稱</label><input type="text" placeholder="2026年第一季週六男子組" value={editingLeague.name} onChange={(e) => setEditingLeague({ ...editingLeague, name: e.target.value })} className={`${inputClass} w-full`} autoFocus /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">區域</label><input type="text" placeholder="北區" value={editingLeague.region} onChange={(e) => setEditingLeague({ ...editingLeague, region: e.target.value })} className={`${inputClass} w-full`} /></div>
+                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">類型</label><input type="text" placeholder="正式錦標賽" value={editingLeague.region} onChange={(e) => setEditingLeague({ ...editingLeague, region: e.target.value })} className={`${inputClass} w-full`} /></div>
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">賽季</label><input type="text" placeholder="2026 Q1" value={editingLeague.season} onChange={(e) => setEditingLeague({ ...editingLeague, season: e.target.value })} className={`${inputClass} w-full`} /></div>
                 </div>
                 <div className="flex gap-3">
@@ -337,7 +337,7 @@ export default function ManagementPage() {
               {/* Col 1: League list */}
               <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
                 <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
-                  <h2 className="text-bn-ink font-bold text-sm">聯盟 ({leagues.length})</h2>
+                  <h2 className="text-bn-ink font-bold text-sm">賽事 ({leagues.length})</h2>
                 </div>
                 <div className="divide-y divide-bn-border/50">
                   {leagues.map((l) => {
@@ -361,7 +361,7 @@ export default function ManagementPage() {
                       </div>
                     )
                   })}
-                  {leagues.length === 0 && <p className="px-5 py-8 text-bn-slate text-xs text-center">尚未建立聯盟</p>}
+                  {leagues.length === 0 && <p className="px-5 py-8 text-bn-slate text-xs text-center">尚未建立賽事</p>}
                 </div>
               </div>
 
@@ -376,7 +376,7 @@ export default function ManagementPage() {
                   )}
                 </div>
                 {!selectedLeagueId ? (
-                  <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇聯盟</p>
+                  <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇賽事</p>
                 ) : (() => {
                   const memberSquadIds = new Set(leagueSquadIds.filter((ls) => ls.league_id === selectedLeagueId).map((ls) => ls.squad_id))
                   const memberSquads = squads.filter((s) => memberSquadIds.has(s.id))
