@@ -28,7 +28,7 @@ export default function RootLayout({
       lang="zh-TW"
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
-      <body>
+      <body suppressHydrationWarning>
         <StoreProvider>{children}</StoreProvider>
       </body>
     </html>

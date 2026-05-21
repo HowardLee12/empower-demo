@@ -21,6 +21,8 @@
   --color-bn-green: #0ECB81;
   --color-bn-red: #F6465D;
   --color-bn-focus: #1EAEDB;
+  --color-bn-blue: #0EA5E9;
+  --color-bn-purple: #A855F7;
 
   /* Legacy aliases (gradual migration) */
   --color-navy: #222126;

@@ -8,16 +8,17 @@ import { supabase } from '@/lib/supabase'
 interface Organization { id: string; name: string; short_name: string }
 interface Squad { id: string; org_id: string; name: string; age_group: string }
 interface DbPlayer { id: string; squad_id: string | null; org_id: string | null; number: string; name: string; birthday: string | null }
-interface League { id: string; name: string; region: string; season: string; is_active: boolean }
+interface League { id: string; name: string; region: string; season: string; is_active: boolean; show_on_homepage: boolean; homepage_season: string }
 interface GameRecord {
   id: string; home_squad_id: string; away_squad_id: string
   home_squad_name: string; away_squad_name: string
   home_score: number; away_score: number
   game_date: string; game_time: string | null
   location: string; status: string; league_id: string | null
+  season: string
 }
 
-interface EditingGame { id: string | null; home_squad_id: string; away_squad_id: string; game_date: string; game_time: string; location: string; status: string; league_id: string }
+interface EditingGame { id: string | null; home_squad_id: string; away_squad_id: string; game_date: string; game_time: string; location: string; status: string; league_id: string; season: string }
 interface EditingLeague { id: string | null; name: string; region: string; season: string }
 interface EditingOrg { id: string | null; name: string; short_name: string }
 interface EditingSquad { id: string | null; org_id: string; name: string; age_group: string }
@@ -57,6 +58,8 @@ export default function ManagementPage() {
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null)
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
   const [selectedLeagueSquadId, setSelectedLeagueSquadId] = useState<string | null>(null)
+  const [gamesYear, setGamesYear] = useState<string>(String(new Date().getFullYear()))
+  const [gamesLeagueFilter, setGamesLeagueFilter] = useState<string>('ALL')
   const [showRosterPicker, setShowRosterPicker] = useState(false)
   const [toast, setToast] = useState('')
 
@@ -98,14 +101,14 @@ export default function ManagementPage() {
       home_squad_id: editingGame.home_squad_id, away_squad_id: editingGame.away_squad_id,
       home_squad_name: homeSquad?.name ?? '', away_squad_name: awaySquad?.name ?? '',
       game_date: editingGame.game_date, game_time: editingGame.game_time || null,
-      location: editingGame.location, status: editingGame.status, league_id: editingGame.league_id || null,
+      location: editingGame.location, status: editingGame.status, league_id: editingGame.league_id || null, season: editingGame.season || '',
     }
     if (editingGame.id) await supabase.from('sb_games').update(payload).eq('id', editingGame.id)
     else await supabase.from('sb_games').insert(payload)
     setEditingGame(null); showToast('已儲存'); await reload()
   }
   const deleteGame = async (id: string) => { await supabase.from('sb_games').delete().eq('id', id); showToast('已刪除'); await reload() }
-  const newGame = (): EditingGame => ({ id: null, home_squad_id: '', away_squad_id: '', game_date: new Date().toISOString().split('T')[0], game_time: '10:00', location: '', status: 'pending', league_id: '' })
+  const newGame = (): EditingGame => ({ id: null, home_squad_id: '', away_squad_id: '', game_date: new Date().toISOString().split('T')[0], game_time: '10:00', location: '', status: 'pending', league_id: '', season: `${new Date().getFullYear()} S1` })
 
   // --- League CRUD ---
   const saveLeague = async () => {
@@ -221,8 +224,15 @@ export default function ManagementPage() {
     )
   }
 
-  const pendingGames = games.filter((g) => g.status === 'pending' || g.status === 'scheduled')
-  const completedGames = games.filter((g) => g.status === 'completed')
+  const filteredGamesForTab = games.filter((g) => {
+    const year = g.game_date.split('-')[0]
+    if (gamesYear !== 'ALL' && year !== gamesYear) return false
+    if (gamesLeagueFilter !== 'ALL' && g.league_id !== gamesLeagueFilter) return false
+    return true
+  })
+  const pendingGames = filteredGamesForTab.filter((g) => g.status === 'pending' || g.status === 'scheduled')
+  const completedGames = filteredGamesForTab.filter((g) => g.status === 'completed')
+  const gameYears = [...new Set(games.map((g) => g.game_date.split('-')[0]))].sort().reverse()
 
   return (
     <div className="min-h-screen bg-bn-snow">
@@ -248,7 +258,7 @@ export default function ManagementPage() {
           {([
             { key: 'teams' as Tab, label: '隊伍管理' },
             { key: 'players' as Tab, label: '球員管理' },
-            { key: 'leagues' as Tab, label: '賽事管理' },
+            { key: 'leagues' as Tab, label: '盃賽管理' },
             { key: 'games' as Tab, label: '賽程管理' },
           ]).map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -265,6 +275,17 @@ export default function ManagementPage() {
               <h1 className="text-xl font-bold text-bn-ink">賽程管理</h1>
               <button onClick={() => setEditingGame(newGame())} className="px-5 py-2.5 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">+ 新增比賽</button>
             </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <select value={gamesYear} onChange={(e) => setGamesYear(e.target.value)} className="text-sm border border-bn-border rounded-[6px] px-3 py-2 bg-white text-bn-ink font-medium focus:outline-none focus:border-bn-yellow">
+                <option value="ALL">全部年份</option>
+                {gameYears.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <select value={gamesLeagueFilter} onChange={(e) => setGamesLeagueFilter(e.target.value)} className="text-sm border border-bn-border rounded-[6px] px-3 py-2 bg-white text-bn-ink font-medium focus:outline-none focus:border-bn-yellow">
+                <option value="ALL">全部盃賽</option>
+                {leagues.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+              <span className="text-bn-slate text-xs">{filteredGamesForTab.length} 場比賽</span>
+            </div>
 
             {editingGame && (
               <div className="rounded-[12px] bg-white border border-bn-yellow/30 p-6">
@@ -273,7 +294,8 @@ export default function ManagementPage() {
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">日期</label><input type="date" value={editingGame.game_date} onChange={(e) => setEditingGame({ ...editingGame, game_date: e.target.value })} className={`${inputClass} w-full`} /></div>
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">時間</label><input type="time" value={editingGame.game_time} onChange={(e) => setEditingGame({ ...editingGame, game_time: e.target.value })} className={`${inputClass} w-full`} /></div>
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">地點</label><input type="text" placeholder="比賽場地" value={editingGame.location} onChange={(e) => setEditingGame({ ...editingGame, location: e.target.value })} className={`${inputClass} w-full`} /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">賽事</label><select value={editingGame.league_id} onChange={(e) => setEditingGame({ ...editingGame, league_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 不指定 --</option>{leagues.map((l) => <option key={l.id} value={l.id}>{l.region} - {l.name}</option>)}</select></div>
+                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">盃賽</label><select value={editingGame.league_id} onChange={(e) => setEditingGame({ ...editingGame, league_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 不指定 --</option>{leagues.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
+                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">賽季</label><input type="text" placeholder="2026 S1" value={editingGame.season} onChange={(e) => setEditingGame({ ...editingGame, season: e.target.value })} className={`${inputClass} w-full`} /></div>
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">主隊</label><select value={editingGame.home_squad_id} onChange={(e) => setEditingGame({ ...editingGame, home_squad_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 選擇 --</option>{squads.map((s) => { const org = orgs.find((o) => o.id === s.org_id); return <option key={s.id} value={s.id}>{org?.short_name ?? org?.name} - {s.name}</option> })}</select></div>
                   <div><label className="block text-bn-secondary text-xs font-semibold mb-2">客隊</label><select value={editingGame.away_squad_id} onChange={(e) => setEditingGame({ ...editingGame, away_squad_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 選擇 --</option>{squads.map((s) => { const org = orgs.find((o) => o.id === s.org_id); return <option key={s.id} value={s.id}>{org?.short_name ?? org?.name} - {s.name}</option> })}</select></div>
                 </div>
@@ -287,22 +309,27 @@ export default function ManagementPage() {
             <div>
               <h2 className="text-base font-bold text-bn-ink mb-3">待開始 ({pendingGames.length})</h2>
               {pendingGames.length === 0 ? <div className="rounded-[12px] bg-white border border-bn-border p-6 text-center"><p className="text-bn-slate text-sm">沒有排定的比賽</p></div> : (
-                <div className="space-y-2">{pendingGames.map((g) => (
+                <div className="space-y-2">{pendingGames.map((g) => {
+                  const cupName = leagues.find((l) => l.id === g.league_id)?.name
+                  return (
                   <div key={g.id} className="rounded-[8px] bg-white border border-bn-border px-5 py-3 flex items-center justify-between group hover:border-bn-yellow/30 transition-colors">
-                    <div className="flex items-center gap-6 text-sm">
+                    <div className="flex items-center gap-4 text-sm">
                       <span className="text-bn-slate tabular-nums w-24">{g.game_date}</span>
                       <span className="text-bn-slate w-14">{g.game_time ?? '-'}</span>
+                      {cupName && <span className="text-xs text-bn-slate bg-bn-snow px-2 py-0.5 rounded">{cupName}</span>}
+                      {g.season && <span className="text-xs text-bn-blue bg-bn-blue/10 px-2 py-0.5 rounded font-medium">{g.season}</span>}
                       <span className="text-bn-ink font-semibold">{g.home_squad_name}</span>
                       <span className="text-bn-border text-xs">vs</span>
                       <span className="text-bn-ink font-semibold">{g.away_squad_name}</span>
                     </div>
                     <div className="flex gap-2 items-center">
                       <Link href={`/management/game/${g.id}`} className="px-4 py-1.5 rounded-[50px] text-xs font-bold bg-bn-green text-white hover:opacity-80 transition-opacity">開始記錄</Link>
-                      <button onClick={() => setEditingGame({ id: g.id, home_squad_id: g.home_squad_id, away_squad_id: g.away_squad_id, game_date: g.game_date, game_time: g.game_time ?? '', location: g.location, status: g.status, league_id: g.league_id ?? '' })} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
+                      <button onClick={() => setEditingGame({ id: g.id, home_squad_id: g.home_squad_id, away_squad_id: g.away_squad_id, game_date: g.game_date, game_time: g.game_time ?? '', location: g.location, status: g.status, league_id: g.league_id ?? '', season: g.season ?? '' })} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
                       <button onClick={() => deleteGame(g.id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
                     </div>
                   </div>
-                ))}</div>
+                  )
+                })}</div>
               )}
             </div>
 
@@ -311,10 +338,13 @@ export default function ManagementPage() {
               {completedGames.length === 0 ? <div className="rounded-[12px] bg-white border border-bn-border p-6 text-center"><p className="text-bn-slate text-sm">沒有已結束的比賽</p></div> : (
                 <div className="space-y-2">{completedGames.map((g) => {
                   const homeWin = g.home_score > g.away_score
+                  const cupName = leagues.find((l) => l.id === g.league_id)?.name
                   return (
                     <div key={g.id} className="rounded-[8px] bg-white border border-bn-border px-5 py-3 flex items-center justify-between group transition-colors">
-                      <div className="flex items-center gap-6 text-sm">
+                      <div className="flex items-center gap-4 text-sm">
                         <span className="text-bn-slate tabular-nums w-24">{g.game_date}</span>
+                        {cupName && <span className="text-xs text-bn-slate bg-bn-snow px-2 py-0.5 rounded">{cupName}</span>}
+                        {g.season && <span className="text-xs text-bn-blue bg-bn-blue/10 px-2 py-0.5 rounded font-medium">{g.season}</span>}
                         <span className={`font-semibold ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_squad_name}</span>
                         <span className={`font-bold tabular-nums ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_score}</span>
                         <span className="text-bn-border">-</span>
@@ -337,16 +367,15 @@ export default function ManagementPage() {
         {tab === 'leagues' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold text-bn-ink">賽事管理</h1>
-              <button onClick={() => setEditingLeague({ id: null, name: '', region: '', season: '' })} className="px-5 py-2.5 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">+ 新增賽事</button>
+              <h1 className="text-xl font-bold text-bn-ink">盃賽管理</h1>
+              <button onClick={() => setEditingLeague({ id: null, name: '', region: '', season: '' })} className="px-5 py-2.5 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">+ 新增盃賽</button>
             </div>
             {editingLeague && (
               <div className="rounded-[12px] bg-white border border-bn-yellow/30 p-6">
-                <h3 className="text-bn-ink font-bold text-sm mb-4">{editingLeague.id ? '編輯賽事' : '新增賽事'}</h3>
-                <div className="grid sm:grid-cols-3 gap-4 mb-4">
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">名稱</label><input type="text" placeholder="2026年第一季週六男子組" value={editingLeague.name} onChange={(e) => setEditingLeague({ ...editingLeague, name: e.target.value })} className={`${inputClass} w-full`} autoFocus /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">類型</label><input type="text" placeholder="正式錦標賽" value={editingLeague.region} onChange={(e) => setEditingLeague({ ...editingLeague, region: e.target.value })} className={`${inputClass} w-full`} /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">賽季</label><input type="text" placeholder="2026 Q1" value={editingLeague.season} onChange={(e) => setEditingLeague({ ...editingLeague, season: e.target.value })} className={`${inputClass} w-full`} /></div>
+                <h3 className="text-bn-ink font-bold text-sm mb-4">{editingLeague.id ? '編輯盃賽' : '新增盃賽'}</h3>
+                <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">名稱</label><input type="text" placeholder="正式錦標賽" value={editingLeague.name} onChange={(e) => setEditingLeague({ ...editingLeague, name: e.target.value })} className={`${inputClass} w-full`} autoFocus /></div>
+                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">類型</label><input type="text" placeholder="Finals" value={editingLeague.region} onChange={(e) => setEditingLeague({ ...editingLeague, region: e.target.value })} className={`${inputClass} w-full`} /></div>
                 </div>
                 <div className="flex gap-3">
                   <button onClick={saveLeague} className="px-6 py-2.5 rounded-[6px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">儲存</button>
@@ -359,7 +388,7 @@ export default function ManagementPage() {
               {/* Col 1: League list */}
               <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
                 <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
-                  <h2 className="text-bn-ink font-bold text-sm">賽事 ({leagues.length})</h2>
+                  <h2 className="text-bn-ink font-bold text-sm">盃賽 ({leagues.length})</h2>
                 </div>
                 <div className="divide-y divide-bn-border/50">
                   {leagues.map((l) => {
@@ -376,9 +405,32 @@ export default function ManagementPage() {
                             <span className="text-bn-yellow text-xs font-semibold">{squadCount} 隊</span>
                           </div>
                         </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => { e.stopPropagation(); setEditingLeague({ id: l.id, name: l.name, region: l.region, season: l.season }) }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
-                          <button onClick={(e) => { e.stopPropagation(); deleteLeague(l.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
+                        <div className="flex items-center gap-2">
+                          {/* Season selector for homepage */}
+                          <select
+                            value={l.homepage_season}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={async (e) => {
+                              const val = e.target.value
+                              const showOnHomepage = val !== ''
+                              await supabase.from('sb_leagues').update({ homepage_season: val, show_on_homepage: showOnHomepage }).eq('id', l.id)
+                              setLeagues(leagues.map((lg) => lg.id === l.id ? { ...lg, homepage_season: val, show_on_homepage: showOnHomepage } : lg))
+                            }}
+                            className={`text-[10px] border rounded px-1.5 py-1 font-semibold focus:outline-none ${
+                              l.homepage_season
+                                ? 'bg-bn-green/15 text-bn-green border-bn-green/30'
+                                : 'bg-bn-snow text-bn-slate border-bn-border'
+                            }`}
+                          >
+                            <option value="">不顯示</option>
+                            {[...new Set(games.filter((g) => g.league_id === l.id).map((g) => g.season).filter(Boolean))].sort().reverse().map((s) => (
+                              <option key={s} value={s}>首頁: {s}</option>
+                            ))}
+                          </select>
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={(e) => { e.stopPropagation(); setEditingLeague({ id: l.id, name: l.name, region: l.region, season: l.season }) }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
+                            <button onClick={(e) => { e.stopPropagation(); deleteLeague(l.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
+                          </div>
                         </div>
                       </div>
                     )
