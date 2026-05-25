@@ -44,7 +44,7 @@ export function StandingsTable({ rows, title = '排名' }: StandingsTableProps) 
             {/* Team */}
             <div className="flex items-center gap-3 min-w-0">
               <TeamEmblem shortName={row.orgShortName} size="sm" />
-              <span className="font-semibold tracking-tight truncate">{row.squadName}</span>
+              <span className="font-semibold tracking-tight truncate text-bn-ink">{row.squadName}</span>
             </div>
 
             {/* GP */}
