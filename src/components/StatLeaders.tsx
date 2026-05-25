@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { TeamEmblem } from './TeamEmblem'
 import type { StatLeader } from '@/lib/stat-leaders'
 
@@ -13,8 +14,9 @@ export function StatLeaders({ leaders }: StatLeadersProps) {
   return (
     <div className="flex flex-col gap-3">
       {leaders.map((l) => (
-        <div
+        <Link
           key={l.category}
+          href={`/players/${l.playerId}`}
           className="bg-white border border-bn-border rounded-[16px] px-5 py-4 grid grid-cols-[1fr_auto] items-center gap-4 cursor-pointer hover:border-bn-dark/20 hover:-translate-y-[1px] transition-all"
         >
           {/* Info */}
@@ -40,7 +42,7 @@ export function StatLeaders({ leaders }: StatLeadersProps) {
               {l.unit}
             </div>
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   )

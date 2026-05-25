@@ -2,6 +2,7 @@ export interface StatLeader {
   readonly category: string
   readonly unit: string
   readonly value: string
+  readonly playerId: string
   readonly playerName: string
   readonly playerNumber: string
   readonly teamName: string
@@ -81,7 +82,9 @@ export function calculateStatLeaders(
     }
   }
 
-  const qualified = [...playerMap.values()].filter((p) => p.games >= MIN_GAMES)
+  const qualified = [...playerMap.entries()]
+    .filter(([, p]) => p.games >= MIN_GAMES)
+    .map(([id, p]) => ({ id, ...p }))
   if (qualified.length === 0) return []
 
   const leaders: StatLeader[] = []
@@ -94,6 +97,7 @@ export function calculateStatLeaders(
       category: '得分王',
       unit: 'PPG',
       value: (p.totalPoints / p.games).toFixed(1),
+      playerId: p.id,
       playerName: p.name,
       playerNumber: p.number,
       teamName: p.teamName,
@@ -109,6 +113,7 @@ export function calculateStatLeaders(
       category: '助攻王',
       unit: 'APG',
       value: (p.totalAssists / p.games).toFixed(1),
+      playerId: p.id,
       playerName: p.name,
       playerNumber: p.number,
       teamName: p.teamName,
@@ -124,6 +129,7 @@ export function calculateStatLeaders(
       category: '籃板王',
       unit: 'RPG',
       value: (p.totalRebounds / p.games).toFixed(1),
+      playerId: p.id,
       playerName: p.name,
       playerNumber: p.number,
       teamName: p.teamName,

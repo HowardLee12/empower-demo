@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { TeamEmblem } from './TeamEmblem'
 import type { StandingRow } from '@/lib/standings'
 
@@ -31,8 +32,9 @@ export function StandingsTable({ rows, title = '排名' }: StandingsTableProps) 
         const isTop3 = i < 3
 
         return (
-          <div
+          <Link
             key={row.squadId}
+            href={`/squads/${row.squadId}`}
             className="grid grid-cols-[32px_1fr_50px_70px_70px_90px] items-center gap-3 px-5 py-3.5 border-b border-bn-border/50 last:border-b-0 hover:bg-[#FAFAF7] transition-colors text-sm cursor-pointer"
           >
             {/* Rank */}
@@ -76,7 +78,7 @@ export function StandingsTable({ rows, title = '排名' }: StandingsTableProps) 
                 />
               ))}
             </div>
-          </div>
+          </Link>
         )
       })}
     </div>
