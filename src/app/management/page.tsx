@@ -15,6 +15,7 @@ const EMPTY_DATA: ManagementData = {
   orgs: [], squads: [], players: [],
   cups: [], seasons: [],
   squadPlayerLinks: [], seasonSquadLinks: [], seasonRosters: [],
+  playerOrgLinks: [],
   games: [],
 }
 
@@ -36,7 +37,7 @@ export default function ManagementPage() {
   }, [])
 
   const reload = useCallback(async () => {
-    const [o, s, p, c, ss, sp, sq, sr, g] = await Promise.all([
+    const [o, s, p, c, ss, sp, sq, sr, po, g] = await Promise.all([
       supabase.from('sb_organizations').select('*').order('name'),
       supabase.from('sb_squads').select('*').order('name'),
       supabase.from('sb_players').select('*').order('number'),
@@ -45,6 +46,7 @@ export default function ManagementPage() {
       supabase.from('sb_squad_players').select('squad_id,player_id,jersey_number'),
       supabase.from('sb_season_squads').select('season_id,squad_id'),
       supabase.from('sb_season_rosters').select('season_id,squad_id,player_id,jersey_number'),
+      supabase.from('sb_player_orgs').select('player_id,org_id'),
       supabase.from('sb_games').select('*').order('game_date', { ascending: false }),
     ])
     setData({
@@ -56,6 +58,7 @@ export default function ManagementPage() {
       squadPlayerLinks: sp.data ?? [],
       seasonSquadLinks: sq.data ?? [],
       seasonRosters: sr.data ?? [],
+      playerOrgLinks: po.data ?? [],
       games: g.data ?? [],
     })
   }, [])

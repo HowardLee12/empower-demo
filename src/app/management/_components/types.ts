@@ -3,11 +3,11 @@ export interface Squad { id: string; org_id: string; name: string; age_group: st
 export interface DbPlayer {
   id: string
   squad_id: string | null
-  org_id: string | null
   number: string
   name: string
   birthday: string | null
 }
+export interface PlayerOrgLink { player_id: string; org_id: string }
 export interface Cup { id: string; name: string; region: string; type: string; is_active: boolean }
 export interface Season {
   id: string
@@ -48,6 +48,7 @@ export interface ManagementData {
   squadPlayerLinks: SquadPlayerLink[]
   seasonSquadLinks: SeasonSquadLink[]
   seasonRosters: SeasonRosterEntry[]
+  playerOrgLinks: PlayerOrgLink[]
   games: GameRecord[]
 }
 

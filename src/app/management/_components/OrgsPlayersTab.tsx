@@ -16,7 +16,13 @@ type Mode = 'squads' | 'players'
 
 interface EditingOrg { id: string | null; name: string; short_name: string; logo_url: string }
 interface EditingSquad { id: string | null; org_id: string; name: string; age_group: string }
-interface EditingPlayer { id: string | null; name: string; number: string; birthday: string; org_id: string }
+interface EditingPlayer {
+  id: string | null
+  name: string
+  number: string
+  birthday: string
+  orgIds: ReadonlySet<string>
+}
 
 export function OrgsPlayersTab({ data, reload, toast }: Props) {
   const [mode, setMode] = useState<Mode>('squads')
@@ -28,7 +34,7 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
   const [editingSquad, setEditingSquad] = useState<EditingSquad | null>(null)
   const [editingPlayer, setEditingPlayer] = useState<EditingPlayer | null>(null)
 
-  const { orgs, squads, players, squadPlayerLinks } = data
+  const { orgs, squads, players, squadPlayerLinks, playerOrgLinks } = data
 
   // --- CRUD ---
   const saveOrg = async () => {
@@ -41,13 +47,26 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
   const deleteOrg = async (id: string) => {
     const org = orgs.find((o) => o.id === id)
     const squadCount = squads.filter((s) => s.org_id === id).length
-    const playerCount = players.filter((p) => p.org_id === id).length
+    // Players who'd lose their ONLY org affiliation if this org is deleted
+    const playerOrgCount = new Map<string, number>()
+    for (const link of playerOrgLinks) {
+      playerOrgCount.set(link.player_id, (playerOrgCount.get(link.player_id) ?? 0) + 1)
+    }
+    const wouldBeOrphaned = playerOrgLinks
+      .filter((l) => l.org_id === id && (playerOrgCount.get(l.player_id) ?? 0) <= 1)
+      .map((l) => players.find((p) => p.id === l.player_id)?.name ?? l.player_id)
+    const linkCount = playerOrgLinks.filter((l) => l.org_id === id).length
+
     const parts = [`球隊「${org?.name}」`]
     if (squadCount > 0) parts.push(`${squadCount} 個小隊`)
-    if (playerCount > 0) parts.push(`${playerCount} 位球員`)
-    const msg = parts.length > 1
-      ? `確定刪除 ${parts[0]}？\n會連帶刪除：${parts.slice(1).join('、')}\n(此操作無法復原)`
+    if (linkCount > 0) parts.push(`${linkCount} 位球員的隸屬紀錄`)
+    let msg = parts.length > 1
+      ? `確定刪除 ${parts[0]}？\n會連帶刪除：${parts.slice(1).join('、')}`
       : `確定刪除 ${parts[0]}？`
+    if (wouldBeOrphaned.length > 0) {
+      msg += `\n\n⚠️ 以下 ${wouldBeOrphaned.length} 位球員將失去所有球隊歸屬（仍會保留歷史比賽紀錄）:\n${wouldBeOrphaned.slice(0, 10).join('、')}${wouldBeOrphaned.length > 10 ? '...' : ''}`
+    }
+    msg += '\n\n(此操作無法復原)'
     if (!confirm(msg)) return
     await supabase.from('sb_organizations').delete().eq('id', id)
     if (selectedOrgId === id) { setSelectedOrgId(null); setSelectedSquadId(null); setSelectedPlayerId(null) }
@@ -74,9 +93,27 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
   }
   const savePlayer = async () => {
     if (!editingPlayer?.name.trim()) return
-    const payload = { name: editingPlayer.name, number: editingPlayer.number, birthday: editingPlayer.birthday || null, org_id: editingPlayer.org_id || null }
-    if (editingPlayer.id) await supabase.from('sb_players').update(payload).eq('id', editingPlayer.id)
-    else await supabase.from('sb_players').insert(payload)
+    if (editingPlayer.orgIds.size === 0) { toast('請至少選擇一個所屬球隊'); return }
+    const payload = { name: editingPlayer.name, number: editingPlayer.number, birthday: editingPlayer.birthday || null }
+    let playerId = editingPlayer.id
+    if (playerId) {
+      await supabase.from('sb_players').update(payload).eq('id', playerId)
+    } else {
+      const { data: inserted } = await supabase.from('sb_players').insert(payload).select('id').single()
+      playerId = inserted?.id ?? null
+    }
+    if (playerId) {
+      // Diff: current links for this player vs target orgIds
+      const currentOrgIds = new Set(playerOrgLinks.filter((l) => l.player_id === playerId).map((l) => l.org_id))
+      const toAdd = [...editingPlayer.orgIds].filter((id) => !currentOrgIds.has(id))
+      const toRemove = [...currentOrgIds].filter((id) => !editingPlayer.orgIds.has(id))
+      if (toAdd.length > 0) {
+        await supabase.from('sb_player_orgs').insert(toAdd.map((orgId) => ({ player_id: playerId, org_id: orgId })))
+      }
+      for (const orgId of toRemove) {
+        await supabase.from('sb_player_orgs').delete().eq('player_id', playerId).eq('org_id', orgId)
+      }
+    }
     setEditingPlayer(null); toast('已儲存'); await reload()
   }
   const deletePlayer = async (id: string) => {
@@ -97,7 +134,8 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
   }
 
   const orgSquads = squads.filter((s) => s.org_id === selectedOrgId)
-  const orgPlayers = selectedOrgId ? players.filter((p) => p.org_id === selectedOrgId) : []
+  const orgPlayerIds = new Set(playerOrgLinks.filter((l) => l.org_id === selectedOrgId).map((l) => l.player_id))
+  const orgPlayers = selectedOrgId ? players.filter((p) => orgPlayerIds.has(p.id)) : []
   const selectedPlayer = selectedPlayerId ? players.find((p) => p.id === selectedPlayerId) : null
   const playerSquadIds = selectedPlayerId ? new Set(squadPlayerLinks.filter((sp) => sp.player_id === selectedPlayerId).map((sp) => sp.squad_id)) : new Set<string>()
   const playerInSquads = squads.filter((s) => playerSquadIds.has(s.id))
@@ -123,7 +161,7 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
         {/* Col 1: Orgs */}
         <OrgsColumn
           orgs={orgs}
-          players={players}
+          playerOrgLinks={playerOrgLinks}
           selectedOrgId={selectedOrgId}
           editingOrg={editingOrg}
           onSelect={(id) => { setSelectedOrgId(id); setSelectedSquadId(null); setSelectedPlayerId(null) }}
@@ -149,12 +187,13 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
             selectedOrgId={selectedOrgId}
             orgPlayers={orgPlayers}
             squadPlayerLinks={squadPlayerLinks}
+            playerOrgLinks={playerOrgLinks}
             squads={squads}
             selectedPlayerId={selectedPlayerId}
             onSelect={setSelectedPlayerId}
             onEdit={setEditingPlayer}
             onDelete={deletePlayer}
-            onNew={() => setEditingPlayer({ id: null, name: '', number: '', birthday: '', org_id: selectedOrgId ?? '' })}
+            onNew={() => setEditingPlayer({ id: null, name: '', number: '', birthday: '', orgIds: new Set(selectedOrgId ? [selectedOrgId] : []) })}
           />
         )}
 
@@ -180,9 +219,9 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
       {/* Player edit modal */}
       {editingPlayer && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditingPlayer(null)}>
-          <div className="bg-white rounded-[12px] p-6 max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-[12px] p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-bn-ink font-bold text-sm mb-4">{editingPlayer.id ? '編輯球員' : '新增球員'}</h3>
-            <div className="grid sm:grid-cols-2 gap-4 mb-4">
+            <div className="grid sm:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-bn-secondary text-xs font-semibold mb-2">姓名 *</label>
                 <input type="text" placeholder="球員姓名" value={editingPlayer.name} onChange={(e) => setEditingPlayer({ ...editingPlayer, name: e.target.value })} className={`${INPUT_CLASS} w-full`} autoFocus />
@@ -195,13 +234,43 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
                 <label className="block text-bn-secondary text-xs font-semibold mb-2">生日</label>
                 <input type="date" value={editingPlayer.birthday} onChange={(e) => setEditingPlayer({ ...editingPlayer, birthday: e.target.value })} className={`${INPUT_CLASS} w-full`} />
               </div>
-              <div>
-                <label className="block text-bn-secondary text-xs font-semibold mb-2">所屬球隊 *</label>
-                <select value={editingPlayer.org_id} onChange={(e) => setEditingPlayer({ ...editingPlayer, org_id: e.target.value })} className={`${INPUT_CLASS} w-full`}>
-                  <option value="">-- 選擇球隊 --</option>
-                  {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-bn-secondary text-xs font-semibold mb-2">所屬球隊 * <span className="text-bn-muted font-normal">(可多選)</span></label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {orgs.map((o) => {
+                  const checked = editingPlayer.orgIds.has(o.id)
+                  return (
+                    <label
+                      key={o.id}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-[8px] border cursor-pointer transition-colors ${
+                        checked ? 'border-bn-yellow bg-bn-yellow/10' : 'border-bn-border hover:bg-bn-snow'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const next = new Set(editingPlayer.orgIds)
+                          if (e.target.checked) next.add(o.id)
+                          else next.delete(o.id)
+                          setEditingPlayer({ ...editingPlayer, orgIds: next })
+                        }}
+                        className="accent-bn-yellow"
+                      />
+                      {o.logo_url ? (
+                        <img src={o.logo_url} alt={o.short_name || o.name} className="w-6 h-6 rounded object-cover" />
+                      ) : (
+                        <span className="w-6 h-6 rounded bg-bn-snow border border-bn-border grid place-items-center text-[8px] text-bn-slate">{(o.short_name || o.name).slice(0, 2)}</span>
+                      )}
+                      <span className="text-sm font-medium text-bn-ink truncate">{o.name}</span>
+                    </label>
+                  )
+                })}
               </div>
+              {editingPlayer.orgIds.size === 0 && (
+                <p className="text-bn-red text-xs mt-2">至少選擇一個球隊</p>
+              )}
             </div>
             <div className="flex gap-3">
               <button onClick={savePlayer} className="px-6 py-2.5 rounded-[6px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">儲存</button>
@@ -216,8 +285,10 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
 
 // --- Sub-components ---
 
-function OrgsColumn({ orgs, players, selectedOrgId, editingOrg, onSelect, onEdit, onDelete, onSave }: {
-  orgs: Organization[]; players: DbPlayer[]; selectedOrgId: string | null
+function OrgsColumn({ orgs, playerOrgLinks, selectedOrgId, editingOrg, onSelect, onEdit, onDelete, onSave }: {
+  orgs: Organization[]
+  playerOrgLinks: { player_id: string; org_id: string }[]
+  selectedOrgId: string | null
   editingOrg: EditingOrg | null
   onSelect: (id: string | null) => void
   onEdit: (e: EditingOrg | null) => void
@@ -247,7 +318,7 @@ function OrgsColumn({ orgs, players, selectedOrgId, editingOrg, onSelect, onEdit
       )}
       <div className="divide-y divide-bn-border/50">
         {orgs.map((org) => {
-          const playerCount = players.filter((p) => p.org_id === org.id).length
+          const playerCount = playerOrgLinks.filter((l) => l.org_id === org.id).length
           const isActive = selectedOrgId === org.id
           return (
             <div key={org.id} onClick={() => onSelect(isActive ? null : org.id)}
@@ -373,10 +444,11 @@ function SquadMembersColumn({ selectedSquadId, squads, squadPlayerLinks, players
   )
 }
 
-function PlayersColumn({ selectedOrgId, orgPlayers, squadPlayerLinks, squads, selectedPlayerId, onSelect, onEdit, onDelete, onNew }: {
+function PlayersColumn({ selectedOrgId, orgPlayers, squadPlayerLinks, playerOrgLinks, squads, selectedPlayerId, onSelect, onEdit, onDelete, onNew }: {
   selectedOrgId: string | null
   orgPlayers: DbPlayer[]
   squadPlayerLinks: { squad_id: string; player_id: string }[]
+  playerOrgLinks: { player_id: string; org_id: string }[]
   squads: Squad[]
   selectedPlayerId: string | null
   onSelect: (id: string | null) => void
@@ -416,7 +488,11 @@ function PlayersColumn({ selectedOrgId, orgPlayers, squadPlayerLinks, squads, se
                   </div>
                 </div>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={(e) => { e.stopPropagation(); onEdit({ id: p.id, name: p.name, number: p.number, birthday: p.birthday ?? '', org_id: p.org_id ?? '' }) }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
+                  <button onClick={(e) => {
+                    e.stopPropagation()
+                    const orgIds = new Set(playerOrgLinks.filter((l) => l.player_id === p.id).map((l) => l.org_id))
+                    onEdit({ id: p.id, name: p.name, number: p.number, birthday: p.birthday ?? '', orgIds })
+                  }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
                   <button onClick={(e) => { e.stopPropagation(); onDelete(p.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
                 </div>
               </div>

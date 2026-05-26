@@ -397,7 +397,7 @@ function SeasonRosterColumn({ selectedSeason, selectedSquadId, squads, players, 
   selectedSeason: Season | undefined
   selectedSquadId: string | null
   squads: { id: string; name: string }[]
-  players: { id: string; name: string; number: string; org_id: string | null }[]
+  players: { id: string; name: string; number: string }[]
   squadPlayerLinks: { squad_id: string; player_id: string }[]
   seasonRosters: { season_id: string; squad_id: string; player_id: string; jersey_number: string }[]
   onRemove: (playerId: string) => void

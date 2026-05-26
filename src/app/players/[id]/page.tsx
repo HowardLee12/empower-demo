@@ -88,7 +88,7 @@ export default function PlayerDetailPage() {
 
   const [player, setPlayer] = useState<PlayerInfo | null>(null)
   const [squad, setSquad] = useState<SquadInfo | null>(null)
-  const [org, setOrg] = useState<OrgInfo | null>(null)
+  const [playerOrgs, setPlayerOrgs] = useState<OrgInfo[]>([])
   const [stats, setStats] = useState<StatRecord[]>([])
   const [games, setGames] = useState<GameRecord[]>([])
   const [cups, setCups] = useState<CupInfo[]>([])
@@ -101,15 +101,20 @@ export default function PlayerDetailPage() {
       if (!pData) { setLoading(false); return }
       setPlayer(pData)
 
-      const [sqRes, stRes] = await Promise.all([
-        supabase.from('sb_squads').select('*').eq('id', pData.squad_id).single(),
+      const [sqRes, stRes, poRes] = await Promise.all([
+        pData.squad_id
+          ? supabase.from('sb_squads').select('*').eq('id', pData.squad_id).single()
+          : Promise.resolve({ data: null }),
         supabase.from('sb_player_stats').select('*').eq('player_id', playerId),
+        supabase.from('sb_player_orgs').select('org_id').eq('player_id', playerId),
       ])
 
-      if (sqRes.data) {
-        setSquad(sqRes.data)
-        const { data: orgData } = await supabase.from('sb_organizations').select('*').eq('id', sqRes.data.org_id).single()
-        if (orgData) setOrg(orgData)
+      if (sqRes.data) setSquad(sqRes.data)
+      // Player's org affiliations (multi-club M2M)
+      if (poRes.data && poRes.data.length > 0) {
+        const orgIds = poRes.data.map((r: { org_id: string }) => r.org_id)
+        const { data: orgData } = await supabase.from('sb_organizations').select('*').in('id', orgIds)
+        if (orgData) setPlayerOrgs(orgData)
       }
 
       const allStats = stRes.data ?? []
@@ -202,8 +207,8 @@ export default function PlayerDetailPage() {
             </div>
             <div>
               <h1 className="text-3xl sm:text-4xl font-black text-bn-ink">{player.name}</h1>
-              <div className="flex items-center gap-2 mt-1 text-bn-ink/60 text-sm">
-                {org && <span>{org.name}</span>}
+              <div className="flex items-center gap-2 mt-1 text-bn-ink/60 text-sm flex-wrap">
+                {playerOrgs.length > 0 && <span>{playerOrgs.map((o) => o.name).join(' · ')}</span>}
                 {squad && <><span className="text-bn-ink/30">|</span><span>{squad.name}</span></>}
                 {squad && <><span className="text-bn-ink/30">|</span><span>{squad.age_group}</span></>}
               </div>
