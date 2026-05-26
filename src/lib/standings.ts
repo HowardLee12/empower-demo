@@ -27,6 +27,28 @@ interface OrgLookup {
   get(squadId: string): { short_name: string } | undefined
 }
 
+function headToHeadDiff(
+  squadAId: string,
+  squadBId: string,
+  games: readonly GameForStandings[]
+): number {
+  // Positive = squadA leads, negative = squadB leads, zero = tied.
+  let aWins = 0
+  let bWins = 0
+  for (const g of games) {
+    const isAvsB =
+      (g.home_squad_id === squadAId && g.away_squad_id === squadBId) ||
+      (g.home_squad_id === squadBId && g.away_squad_id === squadAId)
+    if (!isAvsB) continue
+    const aIsHome = g.home_squad_id === squadAId
+    const aScore = aIsHome ? g.home_score : g.away_score
+    const bScore = aIsHome ? g.away_score : g.home_score
+    if (aScore > bScore) aWins += 1
+    else if (bScore > aScore) bWins += 1
+  }
+  return aWins - bWins
+}
+
 export function calculateStandings(
   games: readonly GameForStandings[],
   seasonId: string | null,
@@ -106,6 +128,10 @@ export function calculateStandings(
 
   return rows.sort((a, b) => {
     if (b.winPct !== a.winPct) return b.winPct - a.winPct
-    return b.pointsFor - b.pointsAgainst - (a.pointsFor - a.pointsAgainst)
+    const aDiff = a.pointsFor - a.pointsAgainst
+    const bDiff = b.pointsFor - b.pointsAgainst
+    if (bDiff !== aDiff) return bDiff - aDiff
+    // Head-to-head tiebreaker: positive return means b ranks higher than a
+    return headToHeadDiff(b.squadId, a.squadId, completed)
   })
 }

@@ -116,20 +116,33 @@ export default function Home() {
 
   useEffect(() => {
     async function load() {
-      const [gRes, cRes, ssRes, oRes, sRes, psRes] = await Promise.all([
+      // Phase 1: load core data in parallel (no player stats yet)
+      const [gRes, cRes, ssRes, oRes, sRes] = await Promise.all([
         supabase.from('sb_games').select('*').order('game_date', { ascending: true }),
         supabase.from('sb_cups').select('id,name,region,type').order('name'),
         supabase.from('sb_seasons').select('*').order('year', { ascending: false }),
         supabase.from('sb_organizations').select('id, short_name, logo_url'),
         supabase.from('sb_squads').select('id, org_id'),
-        supabase.from('sb_player_stats').select('player_id, player_name, player_number, team_side, points, assists, off_rebounds, def_rebounds, game_id'),
       ])
       if (gRes.data) setGames(gRes.data)
       if (cRes.data) setCups(cRes.data)
       if (ssRes.data) setSeasons(ssRes.data)
       if (oRes.data) setOrgs(oRes.data)
       if (sRes.data) setSquadOrgs(sRes.data)
-      if (psRes.data) setPlayerStats(psRes.data)
+
+      // Phase 2: load only player stats for homepage-season completed games.
+      // Avoids fetching every stat row in the DB as the dataset grows.
+      const homepageSeasonIds = new Set((ssRes.data ?? []).filter((s) => s.is_homepage).map((s) => s.id))
+      const relevantGameIds = (gRes.data ?? [])
+        .filter((g) => g.status === 'completed' && g.season_id && homepageSeasonIds.has(g.season_id))
+        .map((g) => g.id)
+      if (relevantGameIds.length > 0) {
+        const psRes = await supabase
+          .from('sb_player_stats')
+          .select('player_id, player_name, player_number, team_side, points, assists, off_rebounds, def_rebounds, game_id')
+          .in('game_id', relevantGameIds)
+        if (psRes.data) setPlayerStats(psRes.data)
+      }
       setLoading(false)
     }
     load()
