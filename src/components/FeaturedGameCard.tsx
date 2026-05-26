@@ -1,6 +1,7 @@
 'use client'
 
 import { TeamEmblem } from './TeamEmblem'
+import { isActuallyLive } from '@/lib/game-status'
 
 interface FeaturedGame {
   readonly id: string
@@ -22,7 +23,7 @@ interface FeaturedGameCardProps {
 }
 
 export function FeaturedGameCard({ game, leagueName, leagueDot, homeOrg, awayOrg }: FeaturedGameCardProps) {
-  const isLive = game.status === 'live'
+  const isLive = isActuallyLive(game)
   const isCompleted = game.status === 'completed'
   const displayTime = game.game_time?.substring(0, 5)
   const homeWin = isCompleted && game.home_score > game.away_score

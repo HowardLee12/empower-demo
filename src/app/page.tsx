@@ -13,6 +13,7 @@ import { StatLeaders } from '@/components/StatLeaders'
 import { calculateStandings } from '@/lib/standings'
 import { calculateStatLeaders } from '@/lib/stat-leaders'
 import { buildSeasonCupMap, buildSquadOrgMap, getCupIdForGame } from '@/lib/cup-season-utils'
+import { isActuallyLive, displayStatus } from '@/lib/game-status'
 
 interface GameRecord {
   id: string
@@ -169,8 +170,8 @@ export default function Home() {
     if (selectedCupId) {
       result = result.filter((g) => gameCupId(g) === selectedCupId)
     }
-    if (statusFilter === 'LIVE') result = result.filter((g) => g.status === 'live')
-    else if (statusFilter === 'UPCOMING') result = result.filter((g) => g.status === 'pending')
+    if (statusFilter === 'LIVE') result = result.filter((g) => isActuallyLive(g))
+    else if (statusFilter === 'UPCOMING') result = result.filter((g) => displayStatus(g) === 'pending')
     else if (statusFilter === 'FINAL') result = result.filter((g) => g.status === 'completed')
     return result
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,16 +186,16 @@ export default function Home() {
     }
     return {
       all: inScope.length,
-      live: inScope.filter((g) => g.status === 'live').length,
-      upcoming: inScope.filter((g) => g.status === 'pending').length,
+      live: inScope.filter((g) => isActuallyLive(g)).length,
+      upcoming: inScope.filter((g) => displayStatus(g) === 'pending').length,
       final: inScope.filter((g) => g.status === 'completed').length,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [games, weekRange, selectedCupId, seasonCupMap])
 
   const heroStats = useMemo(() => {
-    const liveCount = games.filter((g) => g.status === 'live').length
-    const upcomingCount = games.filter((g) => g.status === 'pending').length
+    const liveCount = games.filter((g) => isActuallyLive(g)).length
+    const upcomingCount = games.filter((g) => displayStatus(g) === 'pending').length
     const squadIds = new Set<string>()
     for (const g of games) {
       squadIds.add(g.home_squad_id)
@@ -205,10 +206,10 @@ export default function Home() {
 
   const featuredGame = useMemo(() => {
     const todayStr = toDateStr(new Date())
-    const live = games.find((g) => g.status === 'live')
+    const live = games.find((g) => isActuallyLive(g))
     if (live) return live
     const upcoming = games
-      .filter((g) => g.status === 'pending' && g.game_date >= todayStr)
+      .filter((g) => displayStatus(g) === 'pending' && g.game_date >= todayStr)
       .sort((a, b) => a.game_date.localeCompare(b.game_date) || (a.game_time ?? '').localeCompare(b.game_time ?? ''))
     if (upcoming.length > 0) return upcoming[0]
     const completed = games

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { TeamEmblem } from './TeamEmblem'
+import { isActuallyLive } from '@/lib/game-status'
 
 interface MatchCardProps {
   readonly game: {
@@ -23,7 +24,7 @@ interface MatchCardProps {
 
 export function MatchCard({ game, leagueName, leagueDot, homeOrg, awayOrg }: MatchCardProps) {
   const isCompleted = game.status === 'completed'
-  const isLive = game.status === 'live'
+  const isLive = isActuallyLive(game)
   const homeWin = isCompleted && game.home_score > game.away_score
   const awayWin = isCompleted && game.away_score > game.home_score
   const displayTime = game.game_time?.substring(0, 5)

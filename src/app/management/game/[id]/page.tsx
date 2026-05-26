@@ -102,6 +102,7 @@ export default function ManagementGamePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [quarterMinutes, setQuarterMinutes] = useState(QUARTER_MINUTES)
+  const [statusFlipped, setStatusFlipped] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Load game + players from DB
@@ -257,6 +258,11 @@ export default function ManagementGamePage() {
   }, [])
 
   const handleAction = useCallback((action: StatAction) => {
+    // First action of this session bumps the game to 'live' so the homepage indicator turns on.
+    if (!statusFlipped) {
+      setStatusFlipped(true)
+      supabase.from('sb_games').update({ status: 'live' }).eq('id', dbGameId).then(() => {})
+    }
     setGame((prev) => {
       if (!prev?.selectedPlayerId || !prev?.selectedTeamId) return prev
       const isHome = prev.selectedTeamId === 'home'
@@ -279,7 +285,7 @@ export default function ManagementGamePage() {
       setHistory((h) => [...h, { teamId, playerId, action, quarter: prev.quarter }])
       return { ...prev, homeTeam: newHome, awayTeam: newAway }
     })
-  }, [])
+  }, [statusFlipped, dbGameId])
 
   const handleUndo = useCallback(() => {
     setHistory((prev) => {
