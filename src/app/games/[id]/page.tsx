@@ -12,10 +12,10 @@ interface GameRecord {
   home_score: number; away_score: number
   game_date: string; game_time: string | null; location: string
   quarter_scores_home: number[]; quarter_scores_away: number[]
-  league_id: string | null
+  season_id: string | null
 }
 
-interface LeagueInfo { id: string; name: string; region: string }
+interface CupInfo { id: string; name: string; region: string }
 
 interface PlayerStatRecord {
   id: string; player_id: string; team_side: string
@@ -129,7 +129,7 @@ export default function PublicGameDetailPage() {
   const params = useParams()
   const gameId = params.id as string
   const [game, setGame] = useState<GameRecord | null>(null)
-  const [league, setLeague] = useState<LeagueInfo | null>(null)
+  const [cup, setCup] = useState<CupInfo | null>(null)
   const [stats, setStats] = useState<PlayerStatRecord[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -141,9 +141,12 @@ export default function PublicGameDetailPage() {
       ])
       if (g.data) {
         setGame(g.data)
-        if (g.data.league_id) {
-          const l = await supabase.from('sb_leagues').select('id,name,region').eq('id', g.data.league_id).single()
-          if (l.data) setLeague(l.data)
+        if (g.data.season_id) {
+          const ss = await supabase.from('sb_seasons').select('cup_id').eq('id', g.data.season_id).single()
+          if (ss.data?.cup_id) {
+            const c = await supabase.from('sb_cups').select('id,name,region').eq('id', ss.data.cup_id).single()
+            if (c.data) setCup(c.data)
+          }
         }
       }
       if (s.data) setStats(s.data)
@@ -177,10 +180,10 @@ export default function PublicGameDetailPage() {
         <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8">
           <div className="flex items-center gap-2 mb-4 text-sm">
             <Link href="/" className="text-bn-ink/50 hover:text-bn-ink transition-colors">首頁</Link>
-            {league && (
+            {cup && (
               <>
                 <span className="text-bn-ink/30">/</span>
-                <Link href={`/leagues/${league.id}`} className="text-bn-ink/50 hover:text-bn-ink transition-colors">{league.region} {league.name}</Link>
+                <Link href={`/leagues/${cup.id}`} className="text-bn-ink/50 hover:text-bn-ink transition-colors">{cup.region} {cup.name}</Link>
               </>
             )}
             <span className="text-bn-ink/30">/</span>

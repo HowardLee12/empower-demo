@@ -9,9 +9,10 @@ import { Navbar } from '@/components/Navbar'
 interface PlayerInfo { id: string; name: string; number: string; squad_id: string }
 interface SquadInfo { id: string; name: string; org_id: string; age_group: string }
 interface OrgInfo { id: string; name: string; short_name: string }
-interface LeagueInfo { id: string; name: string; region: string; season: string }
+interface CupInfo { id: string; name: string; region: string }
+interface SeasonInfo { id: string; cup_id: string; name: string; year: number | null }
 interface GameRecord {
-  id: string; league_id: string | null; game_date: string; game_time: string | null
+  id: string; season_id: string | null; game_date: string; game_time: string | null
   home_squad_name: string; away_squad_name: string; home_score: number; away_score: number
   home_squad_id: string; away_squad_id: string; status: string
 }
@@ -89,7 +90,8 @@ export default function PlayerDetailPage() {
   const [org, setOrg] = useState<OrgInfo | null>(null)
   const [stats, setStats] = useState<StatRecord[]>([])
   const [games, setGames] = useState<GameRecord[]>([])
-  const [leagues, setLeagues] = useState<LeagueInfo[]>([])
+  const [cups, setCups] = useState<CupInfo[]>([])
+  const [seasons, setSeasons] = useState<SeasonInfo[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -117,10 +119,17 @@ export default function PlayerDetailPage() {
         const { data: gData } = await supabase.from('sb_games').select('*').in('id', gameIds).order('game_date', { ascending: false })
         if (gData) {
           setGames(gData)
-          const leagueIds = [...new Set(gData.map((g: GameRecord) => g.league_id).filter(Boolean))] as string[]
-          if (leagueIds.length > 0) {
-            const { data: lData } = await supabase.from('sb_leagues').select('*').in('id', leagueIds)
-            if (lData) setLeagues(lData)
+          const seasonIds = [...new Set(gData.map((g: GameRecord) => g.season_id).filter(Boolean))] as string[]
+          if (seasonIds.length > 0) {
+            const { data: sData } = await supabase.from('sb_seasons').select('*').in('id', seasonIds)
+            if (sData) {
+              setSeasons(sData)
+              const cupIds = [...new Set(sData.map((s: SeasonInfo) => s.cup_id))]
+              if (cupIds.length > 0) {
+                const { data: cData } = await supabase.from('sb_cups').select('id,name,region').in('id', cupIds)
+                if (cData) setCups(cData)
+              }
+            }
           }
         }
       }
@@ -132,18 +141,20 @@ export default function PlayerDetailPage() {
   // Career totals
   const careerTotals = useMemo(() => stats.reduce((agg, s) => addStat(agg, s), { ...EMPTY_AGG }), [stats])
 
-  // Per-league averages
-  const leagueAverages = useMemo(() => {
-    const gameLeagueMap = new Map(games.map((g) => [g.id, g.league_id]))
+  // Per-cup averages (aggregate across all seasons of the cup)
+  const cupAverages = useMemo(() => {
+    const gameSeasonMap = new Map(games.map((g) => [g.id, g.season_id]))
+    const seasonCupMap = new Map(seasons.map((s) => [s.id, s.cup_id]))
     const map = new Map<string, AggStats>()
     for (const s of stats) {
-      const leagueId = gameLeagueMap.get(s.game_id)
-      if (!leagueId) continue
-      const prev = map.get(leagueId) ?? { ...EMPTY_AGG }
-      map.set(leagueId, addStat(prev, s))
+      const seasonId = gameSeasonMap.get(s.game_id)
+      const cupId = seasonId ? seasonCupMap.get(seasonId) : null
+      if (!cupId) continue
+      const prev = map.get(cupId) ?? { ...EMPTY_AGG }
+      map.set(cupId, addStat(prev, s))
     }
     return map
-  }, [stats, games])
+  }, [stats, games, seasons])
 
   // Game log with stat for each game
   const gameLog = useMemo(() => {
@@ -221,11 +232,11 @@ export default function PlayerDetailPage() {
           </div>
         )}
 
-        {/* Per-League Averages */}
-        {leagueAverages.size > 0 && (
+        {/* Per-Cup Averages */}
+        {cupAverages.size > 0 && (
           <section>
             <h2 className="text-xl font-bold text-bn-ink mb-1">各賽事平均數據</h2>
-            <p className="text-bn-slate text-sm mb-4">Season Averages</p>
+            <p className="text-bn-slate text-sm mb-4">Cup Averages</p>
             <div className="rounded-[12px] bg-white border border-bn-border shadow-[rgba(32,32,37,0.05)_0px_3px_5px] overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -246,16 +257,16 @@ export default function PlayerDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...leagueAverages.entries()].map(([leagueId, agg]) => {
-                      const league = leagues.find((l) => l.id === leagueId)
-                      const label = league ? (
-                        <Link href={`/leagues/${leagueId}`} className="text-bn-ink hover:text-bn-yellow transition-colors">
-                          {league.region} {league.name}
+                    {[...cupAverages.entries()].map(([cupId, agg]) => {
+                      const cup = cups.find((c) => c.id === cupId)
+                      const label = cup ? (
+                        <Link href={`/leagues/${cupId}`} className="text-bn-ink hover:text-bn-yellow transition-colors">
+                          {cup.region} {cup.name}
                         </Link>
                       ) : '其他'
-                      return <AvgRow key={leagueId} label={label as string} agg={agg} />
+                      return <AvgRow key={cupId} label={label as string} agg={agg} />
                     })}
-                    {leagueAverages.size > 1 && <AvgRow label="生涯" agg={careerTotals} isHeader />}
+                    {cupAverages.size > 1 && <AvgRow label="生涯" agg={careerTotals} isHeader />}
                   </tbody>
                 </table>
               </div>

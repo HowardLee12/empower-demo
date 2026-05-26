@@ -6,11 +6,19 @@ import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Navbar } from '@/components/Navbar'
 
-interface League {
+interface Cup {
   id: string
   name: string
   region: string
-  season: string
+  type: string
+}
+
+interface Season {
+  id: string
+  cup_id: string
+  name: string
+  year: number | null
+  is_homepage: boolean
 }
 
 interface GameRecord {
@@ -25,6 +33,7 @@ interface GameRecord {
   game_time: string | null
   location: string
   status: string
+  season_id: string | null
 }
 
 interface StandingRow {
@@ -35,13 +44,14 @@ interface StandingRow {
   points_against: number
 }
 
+interface SquadInfo { id: string; name: string }
+
 function buildStandings(games: GameRecord[], registeredSquads: SquadInfo[]): StandingRow[] {
   const map = new Map<string, StandingRow>()
   const ensure = (name: string) => {
     if (!map.has(name)) map.set(name, { squad_name: name, wins: 0, losses: 0, points_for: 0, points_against: 0 })
     return map.get(name)!
   }
-  // Add all registered squads first
   for (const s of registeredSquads) ensure(s.name)
   for (const g of games) {
     if (g.status !== 'completed') continue
@@ -66,40 +76,68 @@ function buildStandings(games: GameRecord[], registeredSquads: SquadInfo[]): Sta
   })
 }
 
-interface SquadInfo { id: string; name: string }
-
 export default function LeagueDetailPage() {
   const params = useParams()
-  const leagueId = params.id as string
-  const [league, setLeague] = useState<League | null>(null)
-  const [games, setGames] = useState<GameRecord[]>([])
+  const cupId = params.id as string
+  const [cup, setCup] = useState<Cup | null>(null)
+  const [seasons, setSeasons] = useState<Season[]>([])
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
+  const [allGames, setAllGames] = useState<GameRecord[]>([])
   const [memberSquads, setMemberSquads] = useState<SquadInfo[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
-      const [lRes, gRes, lsRes, sRes] = await Promise.all([
-        supabase.from('sb_leagues').select('*').eq('id', leagueId).single(),
-        supabase.from('sb_games').select('*').eq('league_id', leagueId).order('game_date', { ascending: false }),
-        supabase.from('sb_league_squads').select('squad_id').eq('league_id', leagueId),
+      const [cRes, sRes, allSquadsRes] = await Promise.all([
+        supabase.from('sb_cups').select('*').eq('id', cupId).single(),
+        supabase.from('sb_seasons').select('*').eq('cup_id', cupId).order('year', { ascending: false }).order('created_at', { ascending: false }),
         supabase.from('sb_squads').select('id,name'),
       ])
-      if (lRes.data) setLeague(lRes.data)
-      if (gRes.data) setGames(gRes.data)
-      if (lsRes.data && sRes.data) {
-        const squadIds = new Set(lsRes.data.map((r: { squad_id: string }) => r.squad_id))
-        setMemberSquads(sRes.data.filter((s: SquadInfo) => squadIds.has(s.id)))
+      if (cRes.data) setCup(cRes.data)
+      if (sRes.data) {
+        setSeasons(sRes.data)
+        const defaultSeason = sRes.data.find((s: Season) => s.is_homepage) ?? sRes.data[0]
+        if (defaultSeason) setSelectedSeasonId(defaultSeason.id)
       }
+
+      // Load all games for this cup's seasons
+      if (sRes.data && sRes.data.length > 0) {
+        const seasonIds = sRes.data.map((s: Season) => s.id)
+        const gRes = await supabase.from('sb_games').select('*').in('season_id', seasonIds).order('game_date', { ascending: false })
+        if (gRes.data) setAllGames(gRes.data)
+      }
+
+      if (allSquadsRes.data) {
+        // We'll filter by season below
+        setMemberSquads(allSquadsRes.data)
+      }
+
       setLoading(false)
     }
     load()
-  }, [leagueId])
+  }, [cupId])
 
-  const standings = useMemo(() => buildStandings(games, memberSquads), [games, memberSquads])
+  // Load season-specific squads when selected season changes
+  const [seasonMemberIds, setSeasonMemberIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (!selectedSeasonId) { setSeasonMemberIds(new Set()); return }
+    supabase.from('sb_season_squads').select('squad_id').eq('season_id', selectedSeasonId).then((res) => {
+      if (res.data) setSeasonMemberIds(new Set(res.data.map((r: { squad_id: string }) => r.squad_id)))
+    })
+  }, [selectedSeasonId])
+
+  const games = useMemo(
+    () => selectedSeasonId ? allGames.filter((g) => g.season_id === selectedSeasonId) : allGames,
+    [allGames, selectedSeasonId]
+  )
+  const seasonMemberSquads = useMemo(
+    () => memberSquads.filter((s) => seasonMemberIds.has(s.id)),
+    [memberSquads, seasonMemberIds]
+  )
+  const standings = useMemo(() => buildStandings(games, seasonMemberSquads), [games, seasonMemberSquads])
   const completedGames = games.filter((g) => g.status === 'completed')
   const upcomingGames = games.filter((g) => g.status !== 'completed').sort((a, b) => a.game_date.localeCompare(b.game_date))
 
-  // Build squad name → id map from games + memberSquads
   const squadNameToId = useMemo(() => {
     const map = new Map<string, string>()
     for (const s of memberSquads) map.set(s.name, s.id)
@@ -118,32 +156,63 @@ export default function LeagueDetailPage() {
     )
   }
 
-  if (!league) {
+  if (!cup) {
     return (
       <div className="min-h-screen bg-bn-snow flex items-center justify-center">
-        <p className="text-bn-slate text-sm">找不到此賽事</p>
+        <p className="text-bn-slate text-sm">找不到此盃賽</p>
       </div>
     )
   }
+
+  const selectedSeason = seasons.find((s) => s.id === selectedSeasonId)
 
   return (
     <div className="min-h-screen bg-bn-snow">
       <Navbar />
 
-      {/* League Header */}
+      {/* Cup Header */}
       <div className="bg-bn-yellow pt-16">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8">
           <div className="flex items-center gap-2 mb-2">
             <Link href="/" className="text-bn-ink/50 text-sm hover:text-bn-ink transition-colors">首頁</Link>
             <span className="text-bn-ink/30 text-sm">/</span>
-            <span className="text-bn-ink text-sm font-medium">{league.region}</span>
+            <Link href="/cups" className="text-bn-ink/50 text-sm hover:text-bn-ink transition-colors">盃賽</Link>
+            <span className="text-bn-ink/30 text-sm">/</span>
+            <span className="text-bn-ink text-sm font-medium">{cup.region}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-bn-ink">{league.region} {league.name}</h1>
-          <p className="text-bn-ink/60 text-sm mt-1">{league.season}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-bn-ink">{cup.region} {cup.name}</h1>
+          {selectedSeason && <p className="text-bn-ink/60 text-sm mt-1">{selectedSeason.name}</p>}
         </div>
       </div>
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8 space-y-8">
+        {/* Season selector */}
+        {seasons.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-bn-slate text-xs font-semibold mr-1">賽季：</span>
+            {seasons.map((s) => {
+              const isActive = selectedSeasonId === s.id
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedSeasonId(s.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    isActive ? 'bg-bn-ink text-white' : 'bg-white text-bn-slate border border-bn-border hover:text-bn-ink'
+                  }`}
+                >
+                  {s.name}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {seasons.length === 0 && (
+          <div className="rounded-[12px] bg-white border border-bn-border p-8 text-center">
+            <p className="text-bn-slate text-sm">此盃賽尚未建立賽季</p>
+          </div>
+        )}
+
         {/* Standings */}
         <section>
           <h2 className="text-xl font-bold text-bn-ink mb-1">Team & Standing</h2>
@@ -204,7 +273,6 @@ export default function LeagueDetailPage() {
           )}
         </section>
 
-        {/* Upcoming Schedule */}
         {upcomingGames.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-bn-ink mb-1">Schedule</h2>
@@ -227,7 +295,6 @@ export default function LeagueDetailPage() {
           </section>
         )}
 
-        {/* Results */}
         {completedGames.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-bn-ink mb-1">Results</h2>

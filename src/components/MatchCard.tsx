@@ -13,7 +13,7 @@ interface MatchCardProps {
     readonly game_time: string | null
     readonly location: string
     readonly status: string
-    readonly league_id: string | null
+    readonly season_id?: string | null
   }
   readonly leagueName?: string
   readonly leagueDot?: string

@@ -20,7 +20,7 @@ interface GameForStandings {
   readonly away_score: number
   readonly game_date: string
   readonly status: string
-  readonly league_id: string | null
+  readonly season_id: string | null
 }
 
 interface OrgLookup {
@@ -29,11 +29,11 @@ interface OrgLookup {
 
 export function calculateStandings(
   games: readonly GameForStandings[],
-  leagueId: string | null,
+  seasonId: string | null,
   squadOrgMap: OrgLookup
 ): readonly StandingRow[] {
   const completed = games.filter(
-    (g) => g.status === 'completed' && (leagueId === null || g.league_id === leagueId)
+    (g) => g.status === 'completed' && (seasonId === null || g.season_id === seasonId)
   )
 
   // Sort by date for last-5 calculation

@@ -22,7 +22,7 @@ interface GameRecord {
   home_squad_id: string; away_squad_id: string
   home_squad_name: string; away_squad_name: string
   game_date: string; game_time: string | null
-  location: string; status: string; league_id: string | null
+  location: string; status: string; season_id: string | null
 }
 
 interface GameState {
@@ -112,13 +112,13 @@ export default function ManagementGamePage() {
       if (gData.status === 'completed') { setError('此比賽已結束'); setLoading(false); return }
       setDbGame(gData)
 
-      // Load players: try league_rosters first, fallback to sb_players
-      const loadSquadPlayers = async (squadId: string, leagueId: string | null) => {
-        if (leagueId) {
+      // Load players: try season roster first, then squad_players, then squad-direct
+      const loadSquadPlayers = async (squadId: string, seasonId: string | null) => {
+        if (seasonId) {
           const { data: roster } = await supabase
-            .from('sb_league_rosters')
+            .from('sb_season_rosters')
             .select('player_id, jersey_number')
-            .eq('league_id', leagueId)
+            .eq('season_id', seasonId)
             .eq('squad_id', squadId)
           if (roster && roster.length > 0) {
             const playerIds = roster.map((r: { player_id: string }) => r.player_id)
@@ -131,7 +131,22 @@ export default function ManagementGamePage() {
             }
           }
         }
-        // Fallback: all players in squad
+        // Fallback: squad_players link table
+        const { data: sp } = await supabase
+          .from('sb_squad_players')
+          .select('player_id, jersey_number')
+          .eq('squad_id', squadId)
+        if (sp && sp.length > 0) {
+          const playerIds = sp.map((r: { player_id: string }) => r.player_id)
+          const { data: playerData } = await supabase.from('sb_players').select('*').in('id', playerIds).order('number')
+          if (playerData) {
+            const jerseyMap = new Map(sp.map((r: { player_id: string; jersey_number: string }) => [r.player_id, r.jersey_number]))
+            return playerData.map((p: { id: string; number: string; name: string }) =>
+              createPlayer(p.id, jerseyMap.get(p.id) || p.number, p.name)
+            )
+          }
+        }
+        // Last resort: legacy squad_id column on sb_players
         const { data: playerData } = await supabase.from('sb_players').select('*').eq('squad_id', squadId).order('number')
         return (playerData ?? []).map((p: { id: string; number: string; name: string }) =>
           createPlayer(p.id, p.number, p.name)
@@ -139,8 +154,8 @@ export default function ManagementGamePage() {
       }
 
       const [homePlayers, awayPlayers] = await Promise.all([
-        loadSquadPlayers(gData.home_squad_id, gData.league_id),
-        loadSquadPlayers(gData.away_squad_id, gData.league_id),
+        loadSquadPlayers(gData.home_squad_id, gData.season_id),
+        loadSquadPlayers(gData.away_squad_id, gData.season_id),
       ])
 
       if (homePlayers.length === 0 || awayPlayers.length === 0) {

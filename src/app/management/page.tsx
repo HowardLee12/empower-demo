@@ -1,204 +1,72 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { PlayerPickerModal } from '@/components/PlayerPickerModal'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { OrgsPlayersTab } from './_components/OrgsPlayersTab'
+import { CupsSeasonsTab } from './_components/CupsSeasonsTab'
+import { GamesTab } from './_components/GamesTab'
+import { INPUT_CLASS, type ManagementData } from './_components/types'
 
-interface Organization { id: string; name: string; short_name: string }
-interface Squad { id: string; org_id: string; name: string; age_group: string }
-interface DbPlayer { id: string; squad_id: string | null; org_id: string | null; number: string; name: string; birthday: string | null }
-interface League { id: string; name: string; region: string; season: string; is_active: boolean; show_on_homepage: boolean; homepage_season: string }
-interface GameRecord {
-  id: string; home_squad_id: string; away_squad_id: string
-  home_squad_name: string; away_squad_name: string
-  home_score: number; away_score: number
-  game_date: string; game_time: string | null
-  location: string; status: string; league_id: string | null
-  season: string
-}
-
-interface EditingGame { id: string | null; home_squad_id: string; away_squad_id: string; game_date: string; game_time: string; location: string; status: string; league_id: string; season: string }
-interface EditingLeague { id: string | null; name: string; region: string; season: string }
-interface EditingOrg { id: string | null; name: string; short_name: string }
-interface EditingSquad { id: string | null; org_id: string; name: string; age_group: string }
-
-type Tab = 'games' | 'leagues' | 'teams' | 'players'
+type Tab = 'orgsPlayers' | 'cupsSeasons' | 'games'
 const ADMIN_PASSWORD = 'empower2026'
+
+const EMPTY_DATA: ManagementData = {
+  orgs: [], squads: [], players: [],
+  cups: [], seasons: [],
+  squadPlayerLinks: [], seasonSquadLinks: [], seasonRosters: [],
+  games: [],
+}
 
 export default function ManagementPage() {
   const [authed, setAuthed] = useState(false)
   const [pw, setPw] = useState('')
   const [pwError, setPwError] = useState(false)
+  const [tab, setTab] = useState<Tab>('cupsSeasons')
+  const [data, setData] = useState<ManagementData>(EMPTY_DATA)
+  const [toastMsg, setToastMsg] = useState('')
 
-  // Restore auth from sessionStorage on mount
   useEffect(() => {
     if (sessionStorage.getItem('empower_authed') === '1') setAuthed(true)
   }, [])
-  const [tab, setTab] = useState<Tab>('games')
 
-  const [orgs, setOrgs] = useState<Organization[]>([])
-  const [squads, setSquads] = useState<Squad[]>([])
-  const [players, setPlayers] = useState<DbPlayer[]>([])
-  const [games, setGames] = useState<GameRecord[]>([])
-  const [leagues, setLeagues] = useState<League[]>([])
-
-  const [leagueSquadIds, setLeagueSquadIds] = useState<{ league_id: string; squad_id: string }[]>([])
-  const [leagueRosters, setLeagueRosters] = useState<{ league_id: string; squad_id: string; player_id: string; jersey_number: string }[]>([])
-  const [squadPlayerLinks, setSquadPlayerLinks] = useState<{ squad_id: string; player_id: string; jersey_number: string }[]>([])
-  const [editingGlobalPlayer, setEditingGlobalPlayer] = useState<{ id: string | null; name: string; number: string; birthday: string; org_id: string } | null>(null)
-  const [selectedPlayerOrgId, setSelectedPlayerOrgId] = useState<string | null>(null)
-  const [selectedPlayerIdForSquad, setSelectedPlayerIdForSquad] = useState<string | null>(null)
-
-  const [editingGame, setEditingGame] = useState<EditingGame | null>(null)
-  const [editingLeague, setEditingLeague] = useState<EditingLeague | null>(null)
-  const [editingOrg, setEditingOrg] = useState<EditingOrg | null>(null)
-  const [editingSquad, setEditingSquad] = useState<EditingSquad | null>(null)
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
-  const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null)
-  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
-  const [selectedLeagueSquadId, setSelectedLeagueSquadId] = useState<string | null>(null)
-  const [gamesYear, setGamesYear] = useState<string>(String(new Date().getFullYear()))
-  const [gamesLeagueFilter, setGamesLeagueFilter] = useState<string>('ALL')
-  const [showRosterPicker, setShowRosterPicker] = useState(false)
-  const [toast, setToast] = useState('')
-
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000) }
+  const toast = useCallback((msg: string) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(''), 2000)
+  }, [])
 
   const reload = useCallback(async () => {
-    const [o, s, g, l, p, ls] = await Promise.all([
+    const [o, s, p, c, ss, sp, sq, sr, g] = await Promise.all([
       supabase.from('sb_organizations').select('*').order('name'),
       supabase.from('sb_squads').select('*').order('name'),
-      supabase.from('sb_games').select('*').order('game_date', { ascending: false }),
-      supabase.from('sb_leagues').select('*').order('region'),
       supabase.from('sb_players').select('*').order('number'),
-      supabase.from('sb_league_squads').select('league_id,squad_id'),
+      supabase.from('sb_cups').select('*').order('name'),
+      supabase.from('sb_seasons').select('*').order('year', { ascending: false }),
+      supabase.from('sb_squad_players').select('squad_id,player_id,jersey_number'),
+      supabase.from('sb_season_squads').select('season_id,squad_id'),
+      supabase.from('sb_season_rosters').select('season_id,squad_id,player_id,jersey_number'),
+      supabase.from('sb_games').select('*').order('game_date', { ascending: false }),
     ])
-    if (o.data) setOrgs(o.data)
-    if (s.data) setSquads(s.data)
-    if (g.data) setGames(g.data)
-    if (l.data) setLeagues(l.data)
-    if (p.data) setPlayers(p.data)
-    if (ls.data) setLeagueSquadIds(ls.data)
-    const lr = await supabase.from('sb_league_rosters').select('league_id,squad_id,player_id,jersey_number')
-    if (lr.data) setLeagueRosters(lr.data)
-    const sp = await supabase.from('sb_squad_players').select('squad_id,player_id,jersey_number')
-    if (sp.data) setSquadPlayerLinks(sp.data)
+    setData({
+      orgs: o.data ?? [],
+      squads: s.data ?? [],
+      players: p.data ?? [],
+      cups: c.data ?? [],
+      seasons: ss.data ?? [],
+      squadPlayerLinks: sp.data ?? [],
+      seasonSquadLinks: sq.data ?? [],
+      seasonRosters: sr.data ?? [],
+      games: g.data ?? [],
+    })
   }, [])
 
   useEffect(() => { if (authed) reload() }, [authed, reload])
 
   const handleLogin = () => {
-    if (pw === ADMIN_PASSWORD) { setAuthed(true); sessionStorage.setItem('empower_authed', '1'); setPwError(false) } else setPwError(true)
+    if (pw === ADMIN_PASSWORD) { setAuthed(true); sessionStorage.setItem('empower_authed', '1'); setPwError(false) }
+    else setPwError(true)
   }
 
-  // --- Game CRUD ---
-  const saveGame = async () => {
-    if (!editingGame?.home_squad_id || !editingGame?.away_squad_id) return
-    const homeSquad = squads.find((s) => s.id === editingGame.home_squad_id)
-    const awaySquad = squads.find((s) => s.id === editingGame.away_squad_id)
-    const payload = {
-      home_squad_id: editingGame.home_squad_id, away_squad_id: editingGame.away_squad_id,
-      home_squad_name: homeSquad?.name ?? '', away_squad_name: awaySquad?.name ?? '',
-      game_date: editingGame.game_date, game_time: editingGame.game_time || null,
-      location: editingGame.location, status: editingGame.status, league_id: editingGame.league_id || null, season: editingGame.season || '',
-    }
-    if (editingGame.id) await supabase.from('sb_games').update(payload).eq('id', editingGame.id)
-    else await supabase.from('sb_games').insert(payload)
-    setEditingGame(null); showToast('已儲存'); await reload()
-  }
-  const deleteGame = async (id: string) => { await supabase.from('sb_games').delete().eq('id', id); showToast('已刪除'); await reload() }
-  const newGame = (): EditingGame => ({ id: null, home_squad_id: '', away_squad_id: '', game_date: new Date().toISOString().split('T')[0], game_time: '10:00', location: '', status: 'pending', league_id: '', season: `${new Date().getFullYear()} S1` })
-
-  // --- League CRUD ---
-  const saveLeague = async () => {
-    if (!editingLeague?.name.trim()) return
-    if (editingLeague.id) await supabase.from('sb_leagues').update({ name: editingLeague.name, region: editingLeague.region, season: editingLeague.season }).eq('id', editingLeague.id)
-    else await supabase.from('sb_leagues').insert({ name: editingLeague.name, region: editingLeague.region, season: editingLeague.season })
-    setEditingLeague(null); showToast('已儲存'); await reload()
-  }
-  const deleteLeague = async (id: string) => {
-    await supabase.from('sb_leagues').delete().eq('id', id)
-    if (selectedLeagueId === id) setSelectedLeagueId(null)
-    showToast('已刪除'); await reload()
-  }
-
-  // --- League Squad management ---
-  const addSquadToLeague = async (leagueId: string, squadId: string) => {
-    await supabase.from('sb_league_squads').insert({ league_id: leagueId, squad_id: squadId })
-    showToast('已加入'); await reload()
-  }
-  const removeSquadFromLeague = async (leagueId: string, squadId: string) => {
-    await supabase.from('sb_league_squads').delete().eq('league_id', leagueId).eq('squad_id', squadId)
-    showToast('已移除'); await reload()
-  }
-
-  // --- League Roster management ---
-  const addPlayerToRoster = async (leagueId: string, squadId: string, playerId: string, jerseyNumber: string) => {
-    await supabase.from('sb_league_rosters').insert({ league_id: leagueId, squad_id: squadId, player_id: playerId, jersey_number: jerseyNumber })
-    showToast('已加入名單'); await reload()
-  }
-  const removePlayerFromRoster = async (leagueId: string, squadId: string, playerId: string) => {
-    await supabase.from('sb_league_rosters').delete().eq('league_id', leagueId).eq('squad_id', squadId).eq('player_id', playerId)
-    showToast('已移除'); await reload()
-  }
-
-  // --- Org CRUD ---
-  const saveOrg = async () => {
-    if (!editingOrg?.name.trim()) return
-    if (editingOrg.id) await supabase.from('sb_organizations').update({ name: editingOrg.name, short_name: editingOrg.short_name }).eq('id', editingOrg.id)
-    else await supabase.from('sb_organizations').insert({ name: editingOrg.name, short_name: editingOrg.short_name })
-    setEditingOrg(null); showToast('已儲存'); await reload()
-  }
-  const deleteOrg = async (id: string) => {
-    await supabase.from('sb_organizations').delete().eq('id', id)
-    if (selectedOrgId === id) { setSelectedOrgId(null); setSelectedSquadId(null) }
-    showToast('已刪除'); await reload()
-  }
-
-  // --- Squad CRUD ---
-  const saveSquad = async () => {
-    if (!editingSquad?.name.trim() || !editingSquad?.org_id) return
-    if (editingSquad.id) await supabase.from('sb_squads').update({ name: editingSquad.name, age_group: editingSquad.age_group }).eq('id', editingSquad.id)
-    else await supabase.from('sb_squads').insert({ org_id: editingSquad.org_id, name: editingSquad.name, age_group: editingSquad.age_group })
-    setEditingSquad(null); showToast('已儲存'); await reload()
-  }
-  const deleteSquad = async (id: string) => {
-    await supabase.from('sb_squads').delete().eq('id', id)
-    if (selectedSquadId === id) setSelectedSquadId(null)
-    showToast('已刪除'); await reload()
-  }
-
-  // --- Global Player CRUD (independent of squads) ---
-  const saveGlobalPlayer = async () => {
-    if (!editingGlobalPlayer?.name.trim()) return
-    const payload: Record<string, string | null> = { name: editingGlobalPlayer.name, number: editingGlobalPlayer.number, birthday: editingGlobalPlayer.birthday || null, org_id: editingGlobalPlayer.org_id || null }
-    if (editingGlobalPlayer.id) {
-      await supabase.from('sb_players').update(payload).eq('id', editingGlobalPlayer.id)
-    } else {
-      await supabase.from('sb_players').insert(payload)
-    }
-    setEditingGlobalPlayer(null); showToast('已儲存'); await reload()
-  }
-  const deleteGlobalPlayer = async (id: string) => {
-    await supabase.from('sb_players').delete().eq('id', id)
-    showToast('已刪除'); await reload()
-  }
-  const addPlayerToSquad = async (playerId: string, squadId: string) => {
-    const player = players.find((p) => p.id === playerId)
-    await supabase.from('sb_squad_players').insert({ squad_id: squadId, player_id: playerId, jersey_number: player?.number ?? '' })
-    showToast('已加入隊伍'); await reload()
-  }
-  const removePlayerFromSquad = async (playerId: string, squadId: string) => {
-    await supabase.from('sb_squad_players').delete().eq('squad_id', squadId).eq('player_id', playerId)
-    showToast('已移除'); await reload()
-  }
-
-  const inputClass = 'bg-bn-snow border border-bn-border rounded-[8px] px-4 py-2.5 text-bn-ink text-sm placeholder:text-bn-slate focus:outline-none focus:border-bn-ink transition-colors'
-
-  const orgSquads = squads.filter((s) => s.org_id === selectedOrgId)
-
-  // --- Login ---
   if (!authed) {
     return (
       <div className="min-h-screen bg-bn-dark flex items-center justify-center p-4">
@@ -212,7 +80,7 @@ export default function ManagementPage() {
               <div>
                 <label className="block text-bn-secondary text-xs font-semibold mb-2">密碼</label>
                 <input type="password" value={pw} onChange={(e) => { setPw(e.target.value); setPwError(false) }}
-                  className={`${inputClass} w-full ${pwError ? 'border-bn-red' : ''}`} placeholder="輸入管理密碼" autoFocus />
+                  className={`${INPUT_CLASS} w-full ${pwError ? 'border-bn-red' : ''}`} placeholder="輸入管理密碼" autoFocus />
                 {pwError && <p className="text-bn-red text-xs mt-2">密碼錯誤</p>}
               </div>
               <button type="submit" className="w-full py-3 rounded-[50px] font-semibold text-sm bg-bn-yellow text-bn-ink hover:bg-bn-gold active:bg-bn-active transition-colors">登入</button>
@@ -224,22 +92,18 @@ export default function ManagementPage() {
     )
   }
 
-  const filteredGamesForTab = games.filter((g) => {
-    const year = g.game_date.split('-')[0]
-    if (gamesYear !== 'ALL' && year !== gamesYear) return false
-    if (gamesLeagueFilter !== 'ALL' && g.league_id !== gamesLeagueFilter) return false
-    return true
-  })
-  const pendingGames = filteredGamesForTab.filter((g) => g.status === 'pending' || g.status === 'scheduled')
-  const completedGames = filteredGamesForTab.filter((g) => g.status === 'completed')
-  const gameYears = [...new Set(games.map((g) => g.game_date.split('-')[0]))].sort().reverse()
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'orgsPlayers', label: '組織與球員' },
+    { key: 'cupsSeasons', label: '盃賽與名冊' },
+    { key: 'games', label: '賽程管理' },
+  ]
 
   return (
     <div className="min-h-screen bg-bn-snow">
-      {toast && <div className="fixed top-4 right-4 z-50 bg-bn-green text-white px-5 py-2.5 rounded-[8px] shadow-lg font-semibold text-sm">{toast}</div>}
+      {toastMsg && <div className="fixed top-4 right-4 z-50 bg-bn-green text-white px-5 py-2.5 rounded-[8px] shadow-lg font-semibold text-sm">{toastMsg}</div>}
 
       <header className="bg-white border-b border-bn-border px-4 py-3 sticky top-0 z-40">
-        <div className="max-w-[1200px] mx-auto flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-bn-yellow font-bold text-lg tracking-wider">EMPOWER</Link>
             <span className="text-bn-border">|</span>
@@ -252,15 +116,9 @@ export default function ManagementPage() {
         </div>
       </header>
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-6">
-        {/* Tabs */}
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-8 py-6">
         <div className="flex items-center gap-2 mb-6">
-          {([
-            { key: 'teams' as Tab, label: '隊伍管理' },
-            { key: 'players' as Tab, label: '球員管理' },
-            { key: 'leagues' as Tab, label: '盃賽管理' },
-            { key: 'games' as Tab, label: '賽程管理' },
-          ]).map((t) => (
+          {tabs.map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-5 py-2.5 rounded-[6px] text-sm font-semibold transition-colors ${tab === t.key ? 'bg-bn-yellow text-bn-ink' : 'bg-white text-bn-secondary hover:bg-bn-border/40 border border-bn-border'}`}>
               {t.label}
@@ -268,569 +126,9 @@ export default function ManagementPage() {
           ))}
         </div>
 
-        {/* ===== Games Tab ===== */}
-        {tab === 'games' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold text-bn-ink">賽程管理</h1>
-              <button onClick={() => setEditingGame(newGame())} className="px-5 py-2.5 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">+ 新增比賽</button>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <select value={gamesYear} onChange={(e) => setGamesYear(e.target.value)} className="text-sm border border-bn-border rounded-[6px] px-3 py-2 bg-white text-bn-ink font-medium focus:outline-none focus:border-bn-yellow">
-                <option value="ALL">全部年份</option>
-                {gameYears.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <select value={gamesLeagueFilter} onChange={(e) => setGamesLeagueFilter(e.target.value)} className="text-sm border border-bn-border rounded-[6px] px-3 py-2 bg-white text-bn-ink font-medium focus:outline-none focus:border-bn-yellow">
-                <option value="ALL">全部盃賽</option>
-                {leagues.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
-              <span className="text-bn-slate text-xs">{filteredGamesForTab.length} 場比賽</span>
-            </div>
-
-            {editingGame && (
-              <div className="rounded-[12px] bg-white border border-bn-yellow/30 p-6">
-                <h3 className="text-bn-ink font-bold text-sm mb-4">{editingGame.id ? '編輯比賽' : '新增比賽'}</h3>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">日期</label><input type="date" value={editingGame.game_date} onChange={(e) => setEditingGame({ ...editingGame, game_date: e.target.value })} className={`${inputClass} w-full`} /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">時間</label><input type="time" value={editingGame.game_time} onChange={(e) => setEditingGame({ ...editingGame, game_time: e.target.value })} className={`${inputClass} w-full`} /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">地點</label><input type="text" placeholder="比賽場地" value={editingGame.location} onChange={(e) => setEditingGame({ ...editingGame, location: e.target.value })} className={`${inputClass} w-full`} /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">盃賽</label><select value={editingGame.league_id} onChange={(e) => setEditingGame({ ...editingGame, league_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 不指定 --</option>{leagues.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">賽季</label><input type="text" placeholder="2026 S1" value={editingGame.season} onChange={(e) => setEditingGame({ ...editingGame, season: e.target.value })} className={`${inputClass} w-full`} /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">主隊</label><select value={editingGame.home_squad_id} onChange={(e) => setEditingGame({ ...editingGame, home_squad_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 選擇 --</option>{squads.map((s) => { const org = orgs.find((o) => o.id === s.org_id); return <option key={s.id} value={s.id}>{org?.short_name ?? org?.name} - {s.name}</option> })}</select></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">客隊</label><select value={editingGame.away_squad_id} onChange={(e) => setEditingGame({ ...editingGame, away_squad_id: e.target.value })} className={`${inputClass} w-full`}><option value="">-- 選擇 --</option>{squads.map((s) => { const org = orgs.find((o) => o.id === s.org_id); return <option key={s.id} value={s.id}>{org?.short_name ?? org?.name} - {s.name}</option> })}</select></div>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={saveGame} className="px-6 py-2.5 rounded-[6px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">儲存</button>
-                  <button onClick={() => setEditingGame(null)} className="px-6 py-2.5 rounded-[6px] text-sm font-semibold bg-bn-snow text-bn-secondary border border-bn-border transition-colors">取消</button>
-                </div>
-              </div>
-            )}
-
-            <div>
-              <h2 className="text-base font-bold text-bn-ink mb-3">待開始 ({pendingGames.length})</h2>
-              {pendingGames.length === 0 ? <div className="rounded-[12px] bg-white border border-bn-border p-6 text-center"><p className="text-bn-slate text-sm">沒有排定的比賽</p></div> : (
-                <div className="space-y-2">{pendingGames.map((g) => {
-                  const cupName = leagues.find((l) => l.id === g.league_id)?.name
-                  return (
-                  <div key={g.id} className="rounded-[8px] bg-white border border-bn-border px-5 py-3 flex items-center justify-between group hover:border-bn-yellow/30 transition-colors">
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-bn-slate tabular-nums w-24">{g.game_date}</span>
-                      <span className="text-bn-slate w-14">{g.game_time ?? '-'}</span>
-                      {cupName && <span className="text-xs text-bn-slate bg-bn-snow px-2 py-0.5 rounded">{cupName}</span>}
-                      {g.season && <span className="text-xs text-bn-blue bg-bn-blue/10 px-2 py-0.5 rounded font-medium">{g.season}</span>}
-                      <span className="text-bn-ink font-semibold">{g.home_squad_name}</span>
-                      <span className="text-bn-border text-xs">vs</span>
-                      <span className="text-bn-ink font-semibold">{g.away_squad_name}</span>
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      <Link href={`/management/game/${g.id}`} className="px-4 py-1.5 rounded-[50px] text-xs font-bold bg-bn-green text-white hover:opacity-80 transition-opacity">開始記錄</Link>
-                      <button onClick={() => setEditingGame({ id: g.id, home_squad_id: g.home_squad_id, away_squad_id: g.away_squad_id, game_date: g.game_date, game_time: g.game_time ?? '', location: g.location, status: g.status, league_id: g.league_id ?? '', season: g.season ?? '' })} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
-                      <button onClick={() => deleteGame(g.id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
-                    </div>
-                  </div>
-                  )
-                })}</div>
-              )}
-            </div>
-
-            <div>
-              <h2 className="text-base font-bold text-bn-ink mb-3">已結束 ({completedGames.length})</h2>
-              {completedGames.length === 0 ? <div className="rounded-[12px] bg-white border border-bn-border p-6 text-center"><p className="text-bn-slate text-sm">沒有已結束的比賽</p></div> : (
-                <div className="space-y-2">{completedGames.map((g) => {
-                  const homeWin = g.home_score > g.away_score
-                  const cupName = leagues.find((l) => l.id === g.league_id)?.name
-                  return (
-                    <div key={g.id} className="rounded-[8px] bg-white border border-bn-border px-5 py-3 flex items-center justify-between group transition-colors">
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-bn-slate tabular-nums w-24">{g.game_date}</span>
-                        {cupName && <span className="text-xs text-bn-slate bg-bn-snow px-2 py-0.5 rounded">{cupName}</span>}
-                        {g.season && <span className="text-xs text-bn-blue bg-bn-blue/10 px-2 py-0.5 rounded font-medium">{g.season}</span>}
-                        <span className={`font-semibold ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_squad_name}</span>
-                        <span className={`font-bold tabular-nums ${homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.home_score}</span>
-                        <span className="text-bn-border">-</span>
-                        <span className={`font-bold tabular-nums ${!homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.away_score}</span>
-                        <span className={`font-semibold ${!homeWin ? 'text-bn-ink' : 'text-bn-slate'}`}>{g.away_squad_name}</span>
-                      </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link href={`/games/${g.id}`} className="text-bn-slate hover:text-bn-focus text-xs font-semibold transition-colors">數據</Link>
-                        <button onClick={() => deleteGame(g.id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
-                      </div>
-                    </div>
-                  )
-                })}</div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ===== Leagues Tab ===== */}
-        {tab === 'leagues' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold text-bn-ink">盃賽管理</h1>
-              <button onClick={() => setEditingLeague({ id: null, name: '', region: '', season: '' })} className="px-5 py-2.5 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">+ 新增盃賽</button>
-            </div>
-            {editingLeague && (
-              <div className="rounded-[12px] bg-white border border-bn-yellow/30 p-6">
-                <h3 className="text-bn-ink font-bold text-sm mb-4">{editingLeague.id ? '編輯盃賽' : '新增盃賽'}</h3>
-                <div className="grid sm:grid-cols-2 gap-4 mb-4">
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">名稱</label><input type="text" placeholder="正式錦標賽" value={editingLeague.name} onChange={(e) => setEditingLeague({ ...editingLeague, name: e.target.value })} className={`${inputClass} w-full`} autoFocus /></div>
-                  <div><label className="block text-bn-secondary text-xs font-semibold mb-2">類型</label><input type="text" placeholder="Finals" value={editingLeague.region} onChange={(e) => setEditingLeague({ ...editingLeague, region: e.target.value })} className={`${inputClass} w-full`} /></div>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={saveLeague} className="px-6 py-2.5 rounded-[6px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">儲存</button>
-                  <button onClick={() => setEditingLeague(null)} className="px-6 py-2.5 rounded-[6px] text-sm font-semibold bg-bn-snow text-bn-secondary border border-bn-border transition-colors">取消</button>
-                </div>
-              </div>
-            )}
-
-            <div className="grid md:grid-cols-3 gap-5">
-              {/* Col 1: League list */}
-              <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
-                  <h2 className="text-bn-ink font-bold text-sm">盃賽 ({leagues.length})</h2>
-                </div>
-                <div className="divide-y divide-bn-border/50">
-                  {leagues.map((l) => {
-                    const squadCount = leagueSquadIds.filter((ls) => ls.league_id === l.id).length
-                    const isActive = selectedLeagueId === l.id
-                    return (
-                      <div key={l.id} onClick={() => { setSelectedLeagueId(isActive ? null : l.id); setSelectedLeagueSquadId(null) }}
-                        className={`px-5 py-4 cursor-pointer flex items-center justify-between group transition-colors ${isActive ? 'bg-bn-yellow/10' : 'hover:bg-bn-snow'}`}>
-                        <div>
-                          <p className={`font-semibold text-sm ${isActive ? 'text-bn-yellow' : 'text-bn-ink'}`}>{l.name}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-bn-slate text-xs">{l.region}</span>
-                            <span className="text-bn-border">|</span>
-                            <span className="text-bn-yellow text-xs font-semibold">{squadCount} 隊</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {/* Season selector for homepage */}
-                          <select
-                            value={l.homepage_season}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={async (e) => {
-                              const val = e.target.value
-                              const showOnHomepage = val !== ''
-                              await supabase.from('sb_leagues').update({ homepage_season: val, show_on_homepage: showOnHomepage }).eq('id', l.id)
-                              setLeagues(leagues.map((lg) => lg.id === l.id ? { ...lg, homepage_season: val, show_on_homepage: showOnHomepage } : lg))
-                            }}
-                            className={`text-[10px] border rounded px-1.5 py-1 font-semibold focus:outline-none ${
-                              l.homepage_season
-                                ? 'bg-bn-green/15 text-bn-green border-bn-green/30'
-                                : 'bg-bn-snow text-bn-slate border-bn-border'
-                            }`}
-                          >
-                            <option value="">不顯示</option>
-                            {[...new Set(games.filter((g) => g.league_id === l.id).map((g) => g.season).filter(Boolean))].sort().reverse().map((s) => (
-                              <option key={s} value={s}>首頁: {s}</option>
-                            ))}
-                          </select>
-                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={(e) => { e.stopPropagation(); setEditingLeague({ id: l.id, name: l.name, region: l.region, season: l.season }) }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
-                            <button onClick={(e) => { e.stopPropagation(); deleteLeague(l.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {leagues.length === 0 && <p className="px-5 py-8 text-bn-slate text-xs text-center">尚未建立賽事</p>}
-                </div>
-              </div>
-
-              {/* Col 2: Squads in league */}
-              <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                <div className="px-5 py-3 border-b border-bn-border bg-bn-snow flex items-center justify-between">
-                  <h2 className="text-bn-ink font-bold text-sm">
-                    {selectedLeagueId ? '參賽隊伍' : '隊伍'}
-                  </h2>
-                  {selectedLeagueId && (
-                    <span className="text-bn-slate text-xs">{leagueSquadIds.filter((ls) => ls.league_id === selectedLeagueId).length} 隊</span>
-                  )}
-                </div>
-                {!selectedLeagueId ? (
-                  <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇賽事</p>
-                ) : (() => {
-                  const memberSquadIds = new Set(leagueSquadIds.filter((ls) => ls.league_id === selectedLeagueId).map((ls) => ls.squad_id))
-                  const memberSquads = squads.filter((s) => memberSquadIds.has(s.id))
-                  const availableSquads = squads.filter((s) => !memberSquadIds.has(s.id))
-                  return (
-                    <div>
-                      <div className="divide-y divide-bn-border/50">
-                        {memberSquads.map((s) => {
-                          const org = orgs.find((o) => o.id === s.org_id)
-                          const rosterCount = leagueRosters.filter((r) => r.league_id === selectedLeagueId && r.squad_id === s.id).length
-                          const isActive = selectedLeagueSquadId === s.id
-                          return (
-                            <div key={s.id} onClick={() => setSelectedLeagueSquadId(isActive ? null : s.id)}
-                              className={`px-5 py-3 cursor-pointer flex items-center justify-between group transition-colors ${isActive ? 'bg-bn-yellow/10' : 'hover:bg-bn-snow'}`}>
-                              <div>
-                                <span className={`text-sm font-semibold ${isActive ? 'text-bn-yellow' : 'text-bn-ink'}`}>{s.name}</span>
-                                <span className="text-bn-slate text-xs ml-2">{org?.short_name}</span>
-                                <span className="text-bn-muted text-xs ml-2">{rosterCount} 人</span>
-                              </div>
-                              <button onClick={(e) => { e.stopPropagation(); removeSquadFromLeague(selectedLeagueId!, s.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all">移除</button>
-                            </div>
-                          )
-                        })}
-                        {memberSquads.length === 0 && <p className="px-5 py-4 text-bn-slate text-xs text-center">尚未加入隊伍</p>}
-                      </div>
-                      {availableSquads.length > 0 && (
-                        <div className="border-t border-bn-border p-4">
-                          <p className="text-bn-secondary text-xs font-semibold mb-2">新增隊伍</p>
-                          <div className="flex gap-2">
-                            <select id="add-squad-select" className={`${inputClass} flex-1`} defaultValue="">
-                              <option value="" disabled>-- 選擇 --</option>
-                              {availableSquads.map((s) => {
-                                const org = orgs.find((o) => o.id === s.org_id)
-                                return <option key={s.id} value={s.id}>{org?.short_name ?? org?.name} - {s.name}</option>
-                              })}
-                            </select>
-                            <button onClick={() => { const el = document.getElementById('add-squad-select') as HTMLSelectElement; if (el?.value) { addSquadToLeague(selectedLeagueId!, el.value); el.value = '' } }}
-                              className="px-4 py-2.5 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">加入</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })()}
-              </div>
-
-              {/* Col 3: Roster for selected squad in league */}
-              <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
-                  <h2 className="text-bn-ink font-bold text-sm">
-                    {selectedLeagueSquadId ? `${squads.find((s) => s.id === selectedLeagueSquadId)?.name} 名單` : '參賽名單'}
-                  </h2>
-                </div>
-                {!selectedLeagueId || !selectedLeagueSquadId ? (
-                  <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇隊伍</p>
-                ) : (() => {
-                  const rosterEntries = leagueRosters.filter((r) => r.league_id === selectedLeagueId && r.squad_id === selectedLeagueSquadId)
-                  const rosterPlayerIds = new Set(rosterEntries.map((r) => r.player_id))
-                  const squadMemberIds = new Set(squadPlayerLinks.filter((sp) => sp.squad_id === selectedLeagueSquadId).map((sp) => sp.player_id))
-                  const squadAllPlayers = players.filter((p) => squadMemberIds.has(p.id))
-                  const availablePlayers = squadAllPlayers.filter((p) => !rosterPlayerIds.has(p.id))
-                  return (
-                    <div>
-                      <div className="divide-y divide-bn-border/50">
-                        {rosterEntries.map((r) => {
-                          const player = players.find((p) => p.id === r.player_id)
-                          if (!player) return null
-                          return (
-                            <div key={r.player_id} className="px-5 py-3 flex items-center justify-between group hover:bg-bn-snow transition-colors">
-                              <div className="flex items-center gap-3">
-                                <span className="font-mono font-bold text-bn-yellow text-xs w-8 text-center">#{r.jersey_number || player.number}</span>
-                                <span className="text-bn-ink text-sm font-medium">{player.name}</span>
-                              </div>
-                              <button onClick={() => removePlayerFromRoster(selectedLeagueId!, selectedLeagueSquadId!, r.player_id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all">移除</button>
-                            </div>
-                          )
-                        })}
-                        {rosterEntries.length === 0 && <p className="px-5 py-4 text-bn-slate text-xs text-center">尚未加入球員</p>}
-                      </div>
-                      {availablePlayers.length > 0 && (
-                        <div className="border-t border-bn-border p-4">
-                          <button
-                            onClick={() => setShowRosterPicker(true)}
-                            className="w-full py-2.5 rounded-[6px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors"
-                          >
-                            + 新增球員到名單 ({availablePlayers.length} 位可選)
-                          </button>
-                          {showRosterPicker && (
-                            <PlayerPickerModal
-                              players={availablePlayers}
-                              title={`加入 ${squads.find((s) => s.id === selectedLeagueSquadId)?.name ?? ''} 參賽名單`}
-                              onClose={() => setShowRosterPicker(false)}
-                              onConfirm={async (ids) => {
-                                for (const pid of ids) {
-                                  const p = players.find((pl) => pl.id === pid)
-                                  await addPlayerToRoster(selectedLeagueId!, selectedLeagueSquadId!, pid, p?.number ?? '')
-                                }
-                                setShowRosterPicker(false)
-                              }}
-                            />
-                          )}
-                          {squadAllPlayers.length === 0 && (
-                            <p className="text-bn-muted text-[10px] mt-2">此小隊尚無球員，請先到「隊伍管理」新增</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ===== Teams Tab ===== */}
-        {tab === 'teams' && (
-          <div className="space-y-6">
-            <h1 className="text-xl font-bold text-bn-ink">隊伍管理</h1>
-            <div className="grid md:grid-cols-3 gap-5">
-              {/* Column 1: Organizations */}
-              <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                <div className="px-5 py-3 border-b border-bn-border flex items-center justify-between bg-bn-snow">
-                  <h2 className="text-bn-ink font-bold text-sm">隊伍 ({orgs.length})</h2>
-                  <button onClick={() => setEditingOrg({ id: null, name: '', short_name: '' })} className="text-bn-yellow text-xs font-semibold hover:text-bn-active transition-colors">+ 新增</button>
-                </div>
-                {editingOrg && (
-                  <div className="p-4 border-b border-bn-border bg-bn-snow/50 space-y-2">
-                    <input type="text" placeholder="隊伍名稱" value={editingOrg.name} onChange={(e) => setEditingOrg({ ...editingOrg, name: e.target.value })} className={`${inputClass} w-full`} autoFocus />
-                    <input type="text" placeholder="簡稱" value={editingOrg.short_name} onChange={(e) => setEditingOrg({ ...editingOrg, short_name: e.target.value })} className={`${inputClass} w-full`} />
-                    <div className="flex gap-2">
-                      <button onClick={saveOrg} className="px-4 py-2 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">儲存</button>
-                      <button onClick={() => setEditingOrg(null)} className="px-4 py-2 rounded-[6px] text-xs font-semibold text-bn-slate hover:text-bn-ink transition-colors">取消</button>
-                    </div>
-                  </div>
-                )}
-                <div className="divide-y divide-bn-border/50">
-                  {orgs.map((org) => (
-                    <div key={org.id} onClick={() => { setSelectedOrgId(org.id); setSelectedSquadId(null) }}
-                      className={`px-5 py-4 cursor-pointer flex items-center justify-between group transition-colors ${selectedOrgId === org.id ? 'bg-bn-yellow/10' : 'hover:bg-bn-snow'}`}>
-                      <div>
-                        <p className={`font-semibold text-sm ${selectedOrgId === org.id ? 'text-bn-yellow' : 'text-bn-ink'}`}>{org.name}</p>
-                        {org.short_name && <p className="text-bn-slate text-xs mt-0.5">{org.short_name}</p>}
-                      </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); setEditingOrg({ id: org.id, name: org.name, short_name: org.short_name }) }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteOrg(org.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
-                      </div>
-                    </div>
-                  ))}
-                  {orgs.length === 0 && <p className="px-5 py-8 text-bn-slate text-xs text-center">點擊上方新增隊伍</p>}
-                </div>
-              </div>
-
-              {/* Column 2: Squads */}
-              <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                <div className="px-5 py-3 border-b border-bn-border flex items-center justify-between bg-bn-snow">
-                  <h2 className="text-bn-ink font-bold text-sm">
-                    {selectedOrgId ? `${orgs.find((o) => o.id === selectedOrgId)?.short_name ?? ''} 小隊` : '小隊'}
-                  </h2>
-                  {selectedOrgId && <button onClick={() => setEditingSquad({ id: null, org_id: selectedOrgId, name: '', age_group: '' })} className="text-bn-yellow text-xs font-semibold hover:text-bn-active transition-colors">+ 新增</button>}
-                </div>
-                {editingSquad && (
-                  <div className="p-4 border-b border-bn-border bg-bn-snow/50 space-y-2">
-                    <input type="text" placeholder="小隊名稱" value={editingSquad.name} onChange={(e) => setEditingSquad({ ...editingSquad, name: e.target.value })} className={`${inputClass} w-full`} autoFocus />
-                    <input type="text" placeholder="分組 (U12)" value={editingSquad.age_group} onChange={(e) => setEditingSquad({ ...editingSquad, age_group: e.target.value })} className={`${inputClass} w-full`} />
-                    <div className="flex gap-2">
-                      <button onClick={saveSquad} className="px-4 py-2 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">儲存</button>
-                      <button onClick={() => setEditingSquad(null)} className="px-4 py-2 rounded-[6px] text-xs font-semibold text-bn-slate hover:text-bn-ink transition-colors">取消</button>
-                    </div>
-                  </div>
-                )}
-                {!selectedOrgId ? (
-                  <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇左側隊伍</p>
-                ) : (
-                  <div className="divide-y divide-bn-border/50">
-                    {orgSquads.map((squad) => (
-                      <div key={squad.id} onClick={() => setSelectedSquadId(squad.id)}
-                        className={`px-5 py-4 cursor-pointer flex items-center justify-between group transition-colors ${selectedSquadId === squad.id ? 'bg-bn-yellow/10' : 'hover:bg-bn-snow'}`}>
-                        <div>
-                          <p className={`font-semibold text-sm ${selectedSquadId === squad.id ? 'text-bn-yellow' : 'text-bn-ink'}`}>{squad.name}</p>
-                          <p className="text-bn-slate text-xs mt-0.5">{squad.age_group}</p>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => { e.stopPropagation(); setEditingSquad({ id: squad.id, org_id: squad.org_id, name: squad.name, age_group: squad.age_group }) }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
-                          <button onClick={(e) => { e.stopPropagation(); deleteSquad(squad.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
-                        </div>
-                      </div>
-                    ))}
-                    {orgSquads.length === 0 && <p className="px-5 py-8 text-bn-slate text-xs text-center">點擊上方新增小隊</p>}
-                  </div>
-                )}
-              </div>
-
-              {/* Column 3: Squad Members (read-only) */}
-              <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
-                  <h2 className="text-bn-ink font-bold text-sm">
-                    {selectedSquadId ? `${squads.find((s) => s.id === selectedSquadId)?.name} 球員` : '小隊球員'}
-                  </h2>
-                </div>
-                {!selectedSquadId ? (
-                  <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇左側小隊</p>
-                ) : (() => {
-                  const memberIds = squadPlayerLinks.filter((sp) => sp.squad_id === selectedSquadId).map((sp) => sp.player_id)
-                  const members = players.filter((p) => memberIds.includes(p.id))
-                  return (
-                    <div>
-                      <div className="divide-y divide-bn-border/50">
-                        {members.map((p) => (
-                          <div key={p.id} className="px-5 py-3.5 flex items-center gap-3">
-                            <span className="font-mono font-bold text-bn-yellow text-xs w-8 text-center">#{p.number}</span>
-                            <span className="text-bn-ink text-sm font-medium">{p.name}</span>
-                          </div>
-                        ))}
-                        {members.length === 0 && <p className="px-5 py-4 text-bn-slate text-xs text-center">尚無球員</p>}
-                      </div>
-                      <div className="border-t border-bn-border px-5 py-3">
-                        <p className="text-bn-muted text-xs">球員分配請到「球員管理」tab 操作</p>
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ===== Players Tab ===== */}
-        {tab === 'players' && (() => {
-          const orgPlayersFiltered = selectedPlayerOrgId ? players.filter((p) => p.org_id === selectedPlayerOrgId) : []
-          const selectedPlayer = selectedPlayerIdForSquad ? players.find((p) => p.id === selectedPlayerIdForSquad) : null
-          const playerSquadIds = selectedPlayerIdForSquad ? new Set(squadPlayerLinks.filter((sp) => sp.player_id === selectedPlayerIdForSquad).map((sp) => sp.squad_id)) : new Set<string>()
-          const playerMemberSquads = squads.filter((s) => playerSquadIds.has(s.id))
-          const playerAvailableSquads = selectedPlayerOrgId ? squads.filter((s) => s.org_id === selectedPlayerOrgId && !playerSquadIds.has(s.id)) : []
-
-          return (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold text-bn-ink">球員管理</h1>
-                <button onClick={() => setEditingGlobalPlayer({ id: null, name: '', number: '', birthday: '', org_id: selectedPlayerOrgId ?? '' })} className="px-5 py-2.5 rounded-[50px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">+ 新增球員</button>
-              </div>
-
-              {editingGlobalPlayer && (
-                <div className="rounded-[12px] bg-white border border-bn-yellow/30 p-6">
-                  <h3 className="text-bn-ink font-bold text-sm mb-4">{editingGlobalPlayer.id ? '編輯球員' : '新增球員'}</h3>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <div>
-                      <label className="block text-bn-secondary text-xs font-semibold mb-2">姓名 *</label>
-                      <input type="text" placeholder="球員姓名" value={editingGlobalPlayer.name} onChange={(e) => setEditingGlobalPlayer({ ...editingGlobalPlayer, name: e.target.value })} className={`${inputClass} w-full`} autoFocus />
-                    </div>
-                    <div>
-                      <label className="block text-bn-secondary text-xs font-semibold mb-2">背號</label>
-                      <input type="text" placeholder="#" value={editingGlobalPlayer.number} onChange={(e) => setEditingGlobalPlayer({ ...editingGlobalPlayer, number: e.target.value })} className={`${inputClass} w-full`} />
-                    </div>
-                    <div>
-                      <label className="block text-bn-secondary text-xs font-semibold mb-2">生日 *</label>
-                      <input type="date" value={editingGlobalPlayer.birthday} onChange={(e) => setEditingGlobalPlayer({ ...editingGlobalPlayer, birthday: e.target.value })} className={`${inputClass} w-full`} />
-                    </div>
-                    <div>
-                      <label className="block text-bn-secondary text-xs font-semibold mb-2">所屬球隊 *</label>
-                      <select value={editingGlobalPlayer.org_id} onChange={(e) => setEditingGlobalPlayer({ ...editingGlobalPlayer, org_id: e.target.value })} className={`${inputClass} w-full`}>
-                        <option value="">-- 選擇球隊 --</option>
-                        {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button onClick={saveGlobalPlayer} className="px-6 py-2.5 rounded-[6px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">儲存</button>
-                    <button onClick={() => setEditingGlobalPlayer(null)} className="px-6 py-2.5 rounded-[6px] text-sm font-semibold bg-bn-snow text-bn-secondary border border-bn-border transition-colors">取消</button>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid md:grid-cols-3 gap-5">
-                {/* Col 1: Org list */}
-                <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                  <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
-                    <h2 className="text-bn-ink font-bold text-sm">球隊 ({orgs.length})</h2>
-                  </div>
-                  <div className="divide-y divide-bn-border/50">
-                    {orgs.map((o) => {
-                      const count = players.filter((p) => p.org_id === o.id).length
-                      const isActive = selectedPlayerOrgId === o.id
-                      return (
-                        <div key={o.id} onClick={() => { setSelectedPlayerOrgId(isActive ? null : o.id); setSelectedPlayerIdForSquad(null) }}
-                          className={`px-5 py-4 cursor-pointer flex items-center justify-between transition-colors ${isActive ? 'bg-bn-yellow/10' : 'hover:bg-bn-snow'}`}>
-                          <div>
-                            <p className={`font-semibold text-sm ${isActive ? 'text-bn-yellow' : 'text-bn-ink'}`}>{o.name}</p>
-                            {o.short_name && <p className="text-bn-slate text-xs mt-0.5">{o.short_name}</p>}
-                          </div>
-                          <span className="text-bn-yellow text-xs font-semibold">{count} 人</span>
-                        </div>
-                      )
-                    })}
-                    {orgs.length === 0 && <p className="px-5 py-8 text-bn-slate text-xs text-center">請先到隊伍管理建立球隊</p>}
-                  </div>
-                </div>
-
-                {/* Col 2: Players in org */}
-                <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                  <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
-                    <h2 className="text-bn-ink font-bold text-sm">
-                      {selectedPlayerOrgId ? `${orgs.find((o) => o.id === selectedPlayerOrgId)?.name} 球員` : '球員'}
-                      {selectedPlayerOrgId && <span className="text-bn-slate font-normal ml-1">({orgPlayersFiltered.length})</span>}
-                    </h2>
-                  </div>
-                  {!selectedPlayerOrgId ? (
-                    <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇球隊</p>
-                  ) : (
-                    <div className="divide-y divide-bn-border/50 max-h-[500px] overflow-y-auto">
-                      {orgPlayersFiltered.map((p) => {
-                        const memberSquadNames = squadPlayerLinks.filter((sp) => sp.player_id === p.id).map((sp) => squads.find((s) => s.id === sp.squad_id)?.name).filter(Boolean)
-                        const isActive = selectedPlayerIdForSquad === p.id
-                        return (
-                          <div key={p.id} onClick={() => setSelectedPlayerIdForSquad(isActive ? null : p.id)}
-                            className={`px-5 py-3.5 cursor-pointer flex items-center justify-between group transition-colors ${isActive ? 'bg-bn-yellow/10' : 'hover:bg-bn-snow'}`}>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-bn-yellow text-xs">#{p.number}</span>
-                                <span className={`font-semibold text-sm ${isActive ? 'text-bn-yellow' : 'text-bn-ink'}`}>{p.name}</span>
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {p.birthday && <span className="text-bn-slate text-xs">{p.birthday}</span>}
-                                {memberSquadNames.length > 0 && <span className="text-bn-muted text-xs">{memberSquadNames.join(', ')}</span>}
-                              </div>
-                            </div>
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={(e) => { e.stopPropagation(); setEditingGlobalPlayer({ id: p.id, name: p.name, number: p.number, birthday: p.birthday ?? '', org_id: p.org_id ?? '' }) }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
-                              <button onClick={(e) => { e.stopPropagation(); deleteGlobalPlayer(p.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                      {orgPlayersFiltered.length === 0 && <p className="px-5 py-8 text-bn-slate text-xs text-center">此球隊尚無球員</p>}
-                    </div>
-                  )}
-                </div>
-
-                {/* Col 3: Squad assignment for selected player */}
-                <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
-                  <div className="px-5 py-3 border-b border-bn-border bg-bn-snow">
-                    <h2 className="text-bn-ink font-bold text-sm">
-                      {selectedPlayer ? `${selectedPlayer.name} — 所屬小隊` : '所屬小隊'}
-                    </h2>
-                  </div>
-                  {!selectedPlayerIdForSquad ? (
-                    <p className="px-5 py-8 text-bn-slate text-xs text-center">請先選擇球員</p>
-                  ) : (
-                    <div>
-                      <div className="divide-y divide-bn-border/50">
-                        {playerMemberSquads.map((s) => (
-                          <div key={s.id} className="px-5 py-3 flex items-center justify-between group hover:bg-bn-snow transition-colors">
-                            <span className="text-bn-ink text-sm font-semibold">{s.name}</span>
-                            <button onClick={() => removePlayerFromSquad(selectedPlayerIdForSquad!, s.id)} className="text-bn-slate hover:text-bn-red text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all">移除</button>
-                          </div>
-                        ))}
-                        {playerMemberSquads.length === 0 && <p className="px-5 py-4 text-bn-slate text-xs text-center">尚未加入任何小隊</p>}
-                      </div>
-                      {playerAvailableSquads.length > 0 && (
-                        <div className="border-t border-bn-border p-4">
-                          <p className="text-bn-secondary text-xs font-semibold mb-2">加入小隊</p>
-                          <div className="flex gap-2">
-                            <select id="add-player-squad" className={`${inputClass} flex-1`} defaultValue="">
-                              <option value="" disabled>-- 選擇小隊 --</option>
-                              {playerAvailableSquads.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.age_group})</option>)}
-                            </select>
-                            <button onClick={() => {
-                              const el = document.getElementById('add-player-squad') as HTMLSelectElement
-                              if (el?.value) { addPlayerToSquad(selectedPlayerIdForSquad!, el.value); el.value = '' }
-                            }} className="px-4 py-2.5 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">加入</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })()}
+        {tab === 'orgsPlayers' && <OrgsPlayersTab data={data} reload={reload} toast={toast} />}
+        {tab === 'cupsSeasons' && <CupsSeasonsTab data={data} reload={reload} toast={toast} />}
+        {tab === 'games' && <GamesTab data={data} reload={reload} toast={toast} />}
       </div>
     </div>
   )

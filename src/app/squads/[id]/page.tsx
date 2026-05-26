@@ -8,8 +8,9 @@ import { Navbar } from '@/components/Navbar'
 
 interface Squad { id: string; org_id: string; name: string; age_group: string }
 interface Organization { id: string; name: string; short_name: string }
-interface League { id: string; name: string; region: string; season: string }
-interface RosterEntry { league_id: string; squad_id: string; player_id: string; jersey_number: string }
+interface Cup { id: string; name: string; region: string }
+interface Season { id: string; cup_id: string; name: string; year: number | null }
+interface RosterEntry { season_id: string; squad_id: string; player_id: string; jersey_number: string }
 interface PlayerInfo { id: string; name: string; number: string }
 interface PlayerStatRow {
   player_id: string; player_name: string; player_number: string
@@ -20,7 +21,7 @@ interface PlayerStatRow {
   assists: number; steals: number; blocks: number; turnovers: number; fouls: number
   playing_seconds: number; plus_minus: number; game_id: string
 }
-interface GameRecord { id: string; league_id: string | null }
+interface GameRecord { id: string; season_id: string | null }
 
 function pct(made: number, attempted: number): string {
   if (attempted === 0) return '-'
@@ -34,13 +35,20 @@ interface AggPlayer {
   blk: number; tov: number; fouls: number; secs: number; pm: number
 }
 
+const EMPTY_AGG: Omit<AggPlayer, 'id' | 'name' | 'number'> = {
+  games: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0,
+  ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0,
+  tov: 0, fouls: 0, secs: 0, pm: 0,
+}
+
 export default function SquadDetailPage() {
   const params = useParams()
   const squadId = params.id as string
 
   const [squad, setSquad] = useState<Squad | null>(null)
   const [org, setOrg] = useState<Organization | null>(null)
-  const [leagues, setLeagues] = useState<League[]>([])
+  const [cups, setCups] = useState<Cup[]>([])
+  const [seasons, setSeasons] = useState<Season[]>([])
   const [rosters, setRosters] = useState<RosterEntry[]>([])
   const [allStats, setAllStats] = useState<PlayerStatRow[]>([])
   const [allGames, setAllGames] = useState<GameRecord[]>([])
@@ -49,11 +57,11 @@ export default function SquadDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const [sqRes, lsRes, rRes, gRes, pRes] = await Promise.all([
+      const [sqRes, ssRes, rRes, gRes, pRes] = await Promise.all([
         supabase.from('sb_squads').select('*').eq('id', squadId).single(),
-        supabase.from('sb_league_squads').select('league_id').eq('squad_id', squadId),
-        supabase.from('sb_league_rosters').select('*').eq('squad_id', squadId),
-        supabase.from('sb_games').select('id,league_id,home_squad_id,away_squad_id').or(`home_squad_id.eq.${squadId},away_squad_id.eq.${squadId}`),
+        supabase.from('sb_season_squads').select('season_id').eq('squad_id', squadId),
+        supabase.from('sb_season_rosters').select('*').eq('squad_id', squadId),
+        supabase.from('sb_games').select('id,season_id,home_squad_id,away_squad_id').or(`home_squad_id.eq.${squadId},away_squad_id.eq.${squadId}`),
         supabase.from('sb_players').select('id,name,number').eq('squad_id', squadId),
       ])
       if (sqRes.data) {
@@ -62,29 +70,31 @@ export default function SquadDetailPage() {
         if (orgRes.data) setOrg(orgRes.data)
       }
 
-      // Collect league IDs from both sb_league_squads AND sb_games
-      const leagueIdSet = new Set<string>()
-      if (lsRes.data) {
-        for (const r of lsRes.data) leagueIdSet.add(r.league_id)
-      }
-      // Also check games where this squad played
+      const seasonIdSet = new Set<string>()
+      if (ssRes.data) for (const r of ssRes.data) seasonIdSet.add(r.season_id)
       const allGameData = gRes.data ?? []
       for (const g of allGameData) {
-        if ((g.home_squad_id === squadId || g.away_squad_id === squadId) && g.league_id) {
-          leagueIdSet.add(g.league_id)
+        if (g.season_id && (g.home_squad_id === squadId || g.away_squad_id === squadId)) {
+          seasonIdSet.add(g.season_id)
         }
       }
       setAllGames(allGameData)
 
-      if (leagueIdSet.size > 0) {
-        const lRes = await supabase.from('sb_leagues').select('*').in('id', [...leagueIdSet])
-        if (lRes.data) setLeagues(lRes.data)
+      if (seasonIdSet.size > 0) {
+        const sRes = await supabase.from('sb_seasons').select('*').in('id', [...seasonIdSet])
+        if (sRes.data) {
+          setSeasons(sRes.data)
+          const cupIds = [...new Set(sRes.data.map((s: Season) => s.cup_id))]
+          if (cupIds.length > 0) {
+            const cRes = await supabase.from('sb_cups').select('id,name,region').in('id', cupIds)
+            if (cRes.data) setCups(cRes.data)
+          }
+        }
       }
 
       if (rRes.data) setRosters(rRes.data)
       if (pRes.data) setAllPlayers(pRes.data)
 
-      // Get all stats for players in this squad
       const playerIds = pRes.data?.map((p: PlayerInfo) => p.id) ?? []
       if (playerIds.length > 0) {
         const statsRes = await supabase.from('sb_player_stats').select('*').in('player_id', playerIds)
@@ -95,35 +105,35 @@ export default function SquadDetailPage() {
     load()
   }, [squadId])
 
-  // Build per-league aggregated stats
-  const leagueStats = useMemo(() => {
-    const gameLeagueMap = new Map(allGames.map((g) => [g.id, g.league_id]))
+  // Aggregate per cup (sum across all seasons of the cup)
+  const cupStats = useMemo(() => {
+    const gameSeasonMap = new Map(allGames.map((g) => [g.id, g.season_id]))
+    const seasonCupMap = new Map(seasons.map((s) => [s.id, s.cup_id]))
     const result = new Map<string, AggPlayer[]>()
 
-    for (const league of leagues) {
+    for (const cup of cups) {
+      const cupSeasonIds = new Set(seasons.filter((s) => s.cup_id === cup.id).map((s) => s.id))
       const rosterPlayerIds = new Set(
-        rosters.filter((r) => r.league_id === league.id).map((r) => r.player_id)
+        rosters.filter((r) => cupSeasonIds.has(r.season_id)).map((r) => r.player_id)
       )
-      // If no roster, fall back to all squad players
       const playerIds = rosterPlayerIds.size > 0 ? rosterPlayerIds : new Set(allPlayers.map((p) => p.id))
 
       const playerMap = new Map<string, AggPlayer>()
       for (const pid of playerIds) {
         const p = allPlayers.find((pl) => pl.id === pid)
-        const rosterEntry = rosters.find((r) => r.league_id === league.id && r.player_id === pid)
+        const rosterEntry = rosters.find((r) => cupSeasonIds.has(r.season_id) && r.player_id === pid)
         if (p) {
           playerMap.set(pid, {
             id: pid, name: p.name, number: rosterEntry?.jersey_number || p.number,
-            games: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0,
-            ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0,
-            tov: 0, fouls: 0, secs: 0, pm: 0,
+            ...EMPTY_AGG,
           })
         }
       }
 
       for (const s of allStats) {
         if (!playerIds.has(s.player_id)) continue
-        if (gameLeagueMap.get(s.game_id) !== league.id) continue
+        const seasonId = gameSeasonMap.get(s.game_id)
+        if (!seasonId || seasonCupMap.get(seasonId) !== cup.id) continue
         const agg = playerMap.get(s.player_id)
         if (!agg) continue
         playerMap.set(s.player_id, {
@@ -138,10 +148,10 @@ export default function SquadDetailPage() {
           pm: agg.pm + s.plus_minus,
         })
       }
-      result.set(league.id, [...playerMap.values()].sort((a, b) => b.pts - a.pts))
+      result.set(cup.id, [...playerMap.values()].sort((a, b) => b.pts - a.pts))
     }
     return result
-  }, [leagues, rosters, allStats, allGames, allPlayers])
+  }, [cups, seasons, rosters, allStats, allGames, allPlayers])
 
   if (loading) {
     return <div className="min-h-screen bg-bn-snow flex items-center justify-center">
@@ -159,7 +169,6 @@ export default function SquadDetailPage() {
     <div className="min-h-screen bg-bn-snow">
       <Navbar />
 
-      {/* Header */}
       <div className="bg-bn-yellow pt-16">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8">
           <div className="flex items-center gap-2 mb-2">
@@ -173,13 +182,14 @@ export default function SquadDetailPage() {
       </div>
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8 space-y-10">
-        {leagues.length === 0 ? (
+        {cups.length === 0 ? (
           <div className="rounded-[12px] bg-white border border-bn-border p-10 text-center">
             <p className="text-bn-slate text-sm">此隊伍尚未參加任何賽事</p>
           </div>
         ) : (
-          leagues.map((league) => {
-            const playerStats = leagueStats.get(league.id) ?? []
+          cups.map((cup) => {
+            const playerStats = cupStats.get(cup.id) ?? []
+            const cupSeasons = seasons.filter((s) => s.cup_id === cup.id).sort((a, b) => (b.year ?? 0) - (a.year ?? 0))
             const totals = playerStats.reduce((acc, p) => ({
               games: Math.max(acc.games, p.games), pts: acc.pts + p.pts,
               fgm: acc.fgm + p.fgm, fga: acc.fga + p.fga,
@@ -191,12 +201,16 @@ export default function SquadDetailPage() {
             }), { games: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, fouls: 0 })
 
             return (
-              <section key={league.id}>
-                <div className="flex items-center gap-3 mb-4">
-                  <Link href={`/leagues/${league.id}`} className="text-bn-yellow hover:text-bn-active font-bold text-lg transition-colors">
-                    {league.region} {league.name}
+              <section key={cup.id}>
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
+                  <Link href={`/leagues/${cup.id}`} className="text-bn-yellow hover:text-bn-active font-bold text-lg transition-colors">
+                    {cup.region} {cup.name}
                   </Link>
-                  <span className="text-bn-slate text-xs">{league.season}</span>
+                  {cupSeasons.map((s) => (
+                    <span key={s.id} className="text-bn-slate text-xs bg-white border border-bn-border px-2 py-0.5 rounded">
+                      {s.name}
+                    </span>
+                  ))}
                 </div>
 
                 <div className="rounded-[12px] bg-white border border-bn-border shadow-[rgba(32,32,37,0.05)_0px_3px_5px] overflow-hidden">
