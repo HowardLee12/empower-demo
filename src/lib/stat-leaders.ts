@@ -7,6 +7,7 @@ export interface StatLeader {
   readonly playerNumber: string
   readonly teamName: string
   readonly orgShortName: string
+  readonly orgLogoUrl?: string
 }
 
 interface PlayerStatRow {
@@ -29,7 +30,7 @@ interface GameLookup {
 }
 
 interface OrgLookup {
-  get(squadId: string): { short_name: string } | undefined
+  get(squadId: string): { short_name: string; logo_url?: string } | undefined
 }
 
 const MIN_GAMES = 1
@@ -49,6 +50,7 @@ export function calculateStatLeaders(
     totalRebounds: number
     teamName: string
     orgShortName: string
+    orgLogoUrl?: string
   }>()
 
   for (const s of stats) {
@@ -78,6 +80,7 @@ export function calculateStatLeaders(
         totalRebounds: s.off_rebounds + s.def_rebounds,
         teamName,
         orgShortName: org?.short_name ?? teamName.slice(0, 2),
+        orgLogoUrl: org?.logo_url,
       })
     }
   }
@@ -102,6 +105,7 @@ export function calculateStatLeaders(
       playerNumber: p.number,
       teamName: p.teamName,
       orgShortName: p.orgShortName,
+      orgLogoUrl: p.orgLogoUrl,
     })
   }
 
@@ -118,6 +122,7 @@ export function calculateStatLeaders(
       playerNumber: p.number,
       teamName: p.teamName,
       orgShortName: p.orgShortName,
+      orgLogoUrl: p.orgLogoUrl,
     })
   }
 
@@ -134,6 +139,7 @@ export function calculateStatLeaders(
       playerNumber: p.number,
       teamName: p.teamName,
       orgShortName: p.orgShortName,
+      orgLogoUrl: p.orgLogoUrl,
     })
   }
 

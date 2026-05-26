@@ -28,7 +28,7 @@ export function StatLeaders({ leaders }: StatLeadersProps) {
               {l.playerName || '—'}
             </div>
             <div className="flex items-center gap-2 mt-1.5 text-xs text-bn-slate">
-              <TeamEmblem shortName={l.orgShortName} size="sm" />
+              <TeamEmblem logoUrl={l.orgLogoUrl} shortName={l.orgShortName} size="sm" />
               <span>{l.teamName}{l.playerNumber ? ` · #${l.playerNumber}` : ''}</span>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { ManagementData, Organization, Squad, DbPlayer } from './types'
 import { INPUT_CLASS } from './types'
+import { LogoUpload } from './LogoUpload'
 
 type Props = {
   data: ManagementData
@@ -13,7 +14,7 @@ type Props = {
 
 type Mode = 'squads' | 'players'
 
-interface EditingOrg { id: string | null; name: string; short_name: string }
+interface EditingOrg { id: string | null; name: string; short_name: string; logo_url: string }
 interface EditingSquad { id: string | null; org_id: string; name: string; age_group: string }
 interface EditingPlayer { id: string | null; name: string; number: string; birthday: string; org_id: string }
 
@@ -32,8 +33,9 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
   // --- CRUD ---
   const saveOrg = async () => {
     if (!editingOrg?.name.trim()) return
-    if (editingOrg.id) await supabase.from('sb_organizations').update({ name: editingOrg.name, short_name: editingOrg.short_name }).eq('id', editingOrg.id)
-    else await supabase.from('sb_organizations').insert({ name: editingOrg.name, short_name: editingOrg.short_name })
+    const payload = { name: editingOrg.name, short_name: editingOrg.short_name, logo_url: editingOrg.logo_url }
+    if (editingOrg.id) await supabase.from('sb_organizations').update(payload).eq('id', editingOrg.id)
+    else await supabase.from('sb_organizations').insert(payload)
     setEditingOrg(null); toast('已儲存'); await reload()
   }
   const deleteOrg = async (id: string) => {
@@ -226,12 +228,17 @@ function OrgsColumn({ orgs, players, selectedOrgId, editingOrg, onSelect, onEdit
     <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
       <div className="px-5 py-3 border-b border-bn-border flex items-center justify-between bg-bn-snow">
         <h2 className="text-bn-ink font-bold text-sm">隊伍 ({orgs.length})</h2>
-        <button onClick={() => onEdit({ id: null, name: '', short_name: '' })} className="text-bn-yellow text-xs font-semibold hover:text-bn-active transition-colors">+ 新增</button>
+        <button onClick={() => onEdit({ id: null, name: '', short_name: '', logo_url: '' })} className="text-bn-yellow text-xs font-semibold hover:text-bn-active transition-colors">+ 新增</button>
       </div>
       {editingOrg && (
-        <div className="p-4 border-b border-bn-border bg-bn-snow/50 space-y-2">
+        <div className="p-4 border-b border-bn-border bg-bn-snow/50 space-y-3">
           <input type="text" placeholder="隊伍名稱" value={editingOrg.name} onChange={(e) => onEdit({ ...editingOrg, name: e.target.value })} className={`${INPUT_CLASS} w-full`} autoFocus />
-          <input type="text" placeholder="簡稱" value={editingOrg.short_name} onChange={(e) => onEdit({ ...editingOrg, short_name: e.target.value })} className={`${INPUT_CLASS} w-full`} />
+          <input type="text" placeholder="簡稱 (顯示在 logo 上,2-3 字)" value={editingOrg.short_name} onChange={(e) => onEdit({ ...editingOrg, short_name: e.target.value })} className={`${INPUT_CLASS} w-full`} />
+          <LogoUpload
+            value={editingOrg.logo_url}
+            shortName={editingOrg.short_name || editingOrg.name}
+            onChange={(url) => onEdit({ ...editingOrg, logo_url: url })}
+          />
           <div className="flex gap-2">
             <button onClick={onSave} className="px-4 py-2 rounded-[6px] text-xs font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">儲存</button>
             <button onClick={() => onEdit(null)} className="px-4 py-2 rounded-[6px] text-xs font-semibold text-bn-slate hover:text-bn-ink transition-colors">取消</button>
@@ -245,15 +252,22 @@ function OrgsColumn({ orgs, players, selectedOrgId, editingOrg, onSelect, onEdit
           return (
             <div key={org.id} onClick={() => onSelect(isActive ? null : org.id)}
               className={`px-5 py-4 cursor-pointer flex items-center justify-between group transition-colors ${isActive ? 'bg-bn-yellow/10' : 'hover:bg-bn-snow'}`}>
-              <div>
-                <p className={`font-semibold text-sm ${isActive ? 'text-bn-yellow' : 'text-bn-ink'}`}>{org.name}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {org.short_name && <span className="text-bn-slate text-xs">{org.short_name}</span>}
-                  <span className="text-bn-yellow text-xs font-semibold">{playerCount} 人</span>
+              <div className="flex items-center gap-3">
+                {org.logo_url ? (
+                  <img src={org.logo_url} alt={org.short_name || org.name} className="w-10 h-10 rounded-[10px] object-cover border border-bn-border flex-shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-[10px] bg-bn-snow border border-bn-border grid place-items-center text-bn-slate text-[10px] flex-shrink-0">無</div>
+                )}
+                <div>
+                  <p className={`font-semibold text-sm ${isActive ? 'text-bn-yellow' : 'text-bn-ink'}`}>{org.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {org.short_name && <span className="text-bn-slate text-xs">{org.short_name}</span>}
+                    <span className="text-bn-yellow text-xs font-semibold">{playerCount} 人</span>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={(e) => { e.stopPropagation(); onEdit({ id: org.id, name: org.name, short_name: org.short_name }) }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
+                <button onClick={(e) => { e.stopPropagation(); onEdit({ id: org.id, name: org.name, short_name: org.short_name, logo_url: org.logo_url }) }} className="text-bn-slate hover:text-bn-yellow text-xs font-semibold transition-colors">編輯</button>
                 <button onClick={(e) => { e.stopPropagation(); onDelete(org.id) }} className="text-bn-slate hover:text-bn-red text-xs font-semibold transition-colors">刪除</button>
               </div>
             </div>

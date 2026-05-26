@@ -2,6 +2,7 @@ export interface StandingRow {
   readonly squadId: string
   readonly squadName: string
   readonly orgShortName: string
+  readonly orgLogoUrl?: string
   readonly gamesPlayed: number
   readonly wins: number
   readonly losses: number
@@ -24,7 +25,7 @@ interface GameForStandings {
 }
 
 interface OrgLookup {
-  get(squadId: string): { short_name: string } | undefined
+  get(squadId: string): { short_name: string; logo_url?: string } | undefined
 }
 
 function headToHeadDiff(
@@ -64,6 +65,7 @@ export function calculateStandings(
   const map = new Map<string, {
     squadName: string
     orgShortName: string
+    orgLogoUrl?: string
     wins: number
     losses: number
     pointsFor: number
@@ -77,6 +79,7 @@ export function calculateStandings(
       map.set(squadId, {
         squadName,
         orgShortName: org?.short_name ?? squadName.slice(0, 2),
+        orgLogoUrl: org?.logo_url,
         wins: 0,
         losses: 0,
         pointsFor: 0,
@@ -116,6 +119,7 @@ export function calculateStandings(
       squadId,
       squadName: data.squadName,
       orgShortName: data.orgShortName,
+      orgLogoUrl: data.orgLogoUrl,
       gamesPlayed: gp,
       wins: data.wins,
       losses: data.losses,

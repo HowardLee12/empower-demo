@@ -1,4 +1,4 @@
-export interface Organization { id: string; name: string; short_name: string }
+export interface Organization { id: string; name: string; short_name: string; logo_url: string }
 export interface Squad { id: string; org_id: string; name: string; age_group: string }
 export interface DbPlayer {
   id: string
