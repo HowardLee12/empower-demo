@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Navbar } from '@/components/Navbar'
+import { buildSeasonCupMap } from '@/lib/cup-season-utils'
 
 interface PlayerInfo { id: string; name: string; number: string; squad_id: string }
 interface SquadInfo { id: string; name: string; org_id: string; age_group: string }
@@ -144,7 +145,7 @@ export default function PlayerDetailPage() {
   // Per-cup averages (aggregate across all seasons of the cup)
   const cupAverages = useMemo(() => {
     const gameSeasonMap = new Map(games.map((g) => [g.id, g.season_id]))
-    const seasonCupMap = new Map(seasons.map((s) => [s.id, s.cup_id]))
+    const seasonCupMap = buildSeasonCupMap(seasons)
     const map = new Map<string, AggStats>()
     for (const s of stats) {
       const seasonId = gameSeasonMap.get(s.game_id)

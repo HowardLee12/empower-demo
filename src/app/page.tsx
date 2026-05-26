@@ -12,6 +12,7 @@ import { StandingsTable } from '@/components/StandingsTable'
 import { StatLeaders } from '@/components/StatLeaders'
 import { calculateStandings } from '@/lib/standings'
 import { calculateStatLeaders } from '@/lib/stat-leaders'
+import { buildSeasonCupMap, buildSquadOrgMap, getCupIdForGame } from '@/lib/cup-season-utils'
 
 interface GameRecord {
   id: string
@@ -148,23 +149,8 @@ export default function Home() {
     load()
   }, [])
 
-  // Build org lookup: squadId → OrgInfo
-  const squadOrgMap = useMemo(() => {
-    const orgMap = new Map(orgs.map((o) => [o.id, o]))
-    const map = new Map<string, OrgInfo>()
-    for (const sq of squadOrgs) {
-      const org = orgMap.get(sq.org_id)
-      if (org) map.set(sq.id, org)
-    }
-    return map
-  }, [orgs, squadOrgs])
-
-  // season_id → cup_id (for filtering games by cup)
-  const seasonCupMap = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const s of seasons) map.set(s.id, s.cup_id)
-    return map
-  }, [seasons])
+  const squadOrgMap = useMemo(() => buildSquadOrgMap(squadOrgs, orgs), [orgs, squadOrgs])
+  const seasonCupMap = useMemo(() => buildSeasonCupMap(seasons), [seasons])
 
   const cupDotMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -174,9 +160,7 @@ export default function Home() {
 
   const weekRange = useMemo(() => getWeekRange(weekOffset), [weekOffset])
 
-  function gameCupId(g: GameRecord): string | null {
-    return g.season_id ? seasonCupMap.get(g.season_id) ?? null : null
-  }
+  const gameCupId = (g: GameRecord): string | null => getCupIdForGame(g, seasonCupMap)
 
   // Filter: week → cup → status
   const filteredGames = useMemo(() => {

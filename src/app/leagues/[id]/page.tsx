@@ -84,6 +84,8 @@ export default function LeagueDetailPage() {
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
   const [allGames, setAllGames] = useState<GameRecord[]>([])
   const [memberSquads, setMemberSquads] = useState<SquadInfo[]>([])
+  // Preloaded map: season_id → squad_ids in that season. Switching season is local.
+  const [seasonSquadMap, setSeasonSquadMap] = useState<ReadonlyMap<string, ReadonlySet<string>>>(new Map())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -94,22 +96,31 @@ export default function LeagueDetailPage() {
         supabase.from('sb_squads').select('id,name'),
       ])
       if (cRes.data) setCup(cRes.data)
+      if (allSquadsRes.data) setMemberSquads(allSquadsRes.data)
       if (sRes.data) {
         setSeasons(sRes.data)
         const defaultSeason = sRes.data.find((s: Season) => s.is_homepage) ?? sRes.data[0]
         if (defaultSeason) setSelectedSeasonId(defaultSeason.id)
       }
 
-      // Load all games for this cup's seasons
+      // Phase 2: load games + season_squads for all cup seasons in parallel.
       if (sRes.data && sRes.data.length > 0) {
         const seasonIds = sRes.data.map((s: Season) => s.id)
-        const gRes = await supabase.from('sb_games').select('*').in('season_id', seasonIds).order('game_date', { ascending: false })
-        if (gRes.data) setAllGames(gRes.data)
-      }
-
-      if (allSquadsRes.data) {
-        // We'll filter by season below
-        setMemberSquads(allSquadsRes.data)
+        await Promise.all([
+          supabase.from('sb_games').select('*').in('season_id', seasonIds).order('game_date', { ascending: false }).then((r) => {
+            if (r.data) setAllGames(r.data)
+          }),
+          supabase.from('sb_season_squads').select('season_id,squad_id').in('season_id', seasonIds).then((r) => {
+            if (!r.data) return
+            const map = new Map<string, Set<string>>()
+            for (const row of r.data) {
+              const set = map.get(row.season_id) ?? new Set<string>()
+              set.add(row.squad_id)
+              map.set(row.season_id, set)
+            }
+            setSeasonSquadMap(map)
+          }),
+        ])
       }
 
       setLoading(false)
@@ -117,23 +128,15 @@ export default function LeagueDetailPage() {
     load()
   }, [cupId])
 
-  // Load season-specific squads when selected season changes
-  const [seasonMemberIds, setSeasonMemberIds] = useState<Set<string>>(new Set())
-  useEffect(() => {
-    if (!selectedSeasonId) { setSeasonMemberIds(new Set()); return }
-    supabase.from('sb_season_squads').select('squad_id').eq('season_id', selectedSeasonId).then((res) => {
-      if (res.data) setSeasonMemberIds(new Set(res.data.map((r: { squad_id: string }) => r.squad_id)))
-    })
-  }, [selectedSeasonId])
-
   const games = useMemo(
     () => selectedSeasonId ? allGames.filter((g) => g.season_id === selectedSeasonId) : allGames,
     [allGames, selectedSeasonId]
   )
-  const seasonMemberSquads = useMemo(
-    () => memberSquads.filter((s) => seasonMemberIds.has(s.id)),
-    [memberSquads, seasonMemberIds]
-  )
+  const seasonMemberSquads = useMemo(() => {
+    if (!selectedSeasonId) return []
+    const ids = seasonSquadMap.get(selectedSeasonId) ?? new Set<string>()
+    return memberSquads.filter((s) => ids.has(s.id))
+  }, [memberSquads, seasonSquadMap, selectedSeasonId])
   const standings = useMemo(() => buildStandings(games, seasonMemberSquads), [games, seasonMemberSquads])
   const completedGames = games.filter((g) => g.status === 'completed')
   const upcomingGames = games.filter((g) => g.status !== 'completed').sort((a, b) => a.game_date.localeCompare(b.game_date))

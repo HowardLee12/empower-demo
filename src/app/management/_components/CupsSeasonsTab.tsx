@@ -77,6 +77,30 @@ export function CupsSeasonsTab({ data, reload, toast }: Props) {
     await supabase.from('sb_season_rosters').delete().eq('season_id', seasonId).eq('squad_id', squadId).eq('player_id', playerId)
     toast('已移除'); await reload()
   }
+  // P2 #8: bulk-import the squad's existing players into the season roster.
+  const importSquadIntoRoster = async (seasonId: string, squadId: string) => {
+    const squadMembers = squadPlayerLinks.filter((sp) => sp.squad_id === squadId)
+    const existingPlayerIds = new Set(
+      seasonRosters
+        .filter((r) => r.season_id === seasonId && r.squad_id === squadId)
+        .map((r) => r.player_id)
+    )
+    const toInsert = squadMembers
+      .filter((sp) => !existingPlayerIds.has(sp.player_id))
+      .map((sp) => ({
+        season_id: seasonId,
+        squad_id: squadId,
+        player_id: sp.player_id,
+        jersey_number: sp.jersey_number,
+      }))
+    if (toInsert.length === 0) {
+      toast('沒有新球員可匯入')
+      return
+    }
+    await supabase.from('sb_season_rosters').insert(toInsert)
+    toast(`已匯入 ${toInsert.length} 位球員`)
+    await reload()
+  }
 
   const cupSeasons = selectedCupId ? seasons.filter((s) => s.cup_id === selectedCupId).sort((a, b) => (b.year ?? 0) - (a.year ?? 0)) : []
   const selectedSeason = seasons.find((s) => s.id === selectedSeasonId)
@@ -181,6 +205,7 @@ export function CupsSeasonsTab({ data, reload, toast }: Props) {
               }
               setShowRosterPicker(false)
             }}
+            onImportSquad={() => importSquadIntoRoster(selectedSeasonId!, selectedSquadId!)}
           />
         </div>
       </div>
@@ -343,7 +368,7 @@ function SeasonSquadsColumn({ selectedSeason, seasonSquads, availableSquads, org
   )
 }
 
-function SeasonRosterColumn({ selectedSeason, selectedSquadId, squads, players, squadPlayerLinks, seasonRosters, onRemove, onOpenPicker, showPicker, onClosePicker, onAddBatch }: {
+function SeasonRosterColumn({ selectedSeason, selectedSquadId, squads, players, squadPlayerLinks, seasonRosters, onRemove, onOpenPicker, showPicker, onClosePicker, onAddBatch, onImportSquad }: {
   selectedSeason: Season | undefined
   selectedSquadId: string | null
   squads: { id: string; name: string }[]
@@ -355,6 +380,7 @@ function SeasonRosterColumn({ selectedSeason, selectedSquadId, squads, players, 
   showPicker: boolean
   onClosePicker: () => void
   onAddBatch: (ids: string[]) => Promise<void>
+  onImportSquad: () => void
 }) {
   return (
     <div className="rounded-[12px] bg-white border border-bn-border overflow-hidden">
@@ -389,11 +415,16 @@ function SeasonRosterColumn({ selectedSeason, selectedSquadId, squads, players, 
               })}
               {rosterEntries.length === 0 && <p className="px-5 py-4 text-bn-slate text-xs text-center">尚未加入球員</p>}
             </div>
-            <div className="border-t border-bn-border p-4">
+            <div className="border-t border-bn-border p-4 space-y-2">
               {availablePlayers.length > 0 ? (
-                <button onClick={onOpenPicker} className="w-full py-2.5 rounded-[6px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">
-                  + 新增球員到名單 ({availablePlayers.length} 位可選)
-                </button>
+                <>
+                  <button onClick={onImportSquad} className="w-full py-2.5 rounded-[6px] text-sm font-semibold bg-bn-ink text-white hover:bg-bn-secondary transition-colors">
+                    ⚡ 從小隊匯入全部 ({availablePlayers.length} 位)
+                  </button>
+                  <button onClick={onOpenPicker} className="w-full py-2.5 rounded-[6px] text-sm font-semibold bg-bn-yellow text-bn-ink hover:bg-bn-gold transition-colors">
+                    + 個別選擇加入
+                  </button>
+                </>
               ) : (
                 <p className="text-bn-muted text-xs text-center">{squadAllPlayers.length === 0 ? '此小隊尚無球員，請先到「組織與球員」加入' : '所有球員都已在名單'}</p>
               )}

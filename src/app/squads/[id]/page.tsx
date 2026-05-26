@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Navbar } from '@/components/Navbar'
+import { buildSeasonCupMap } from '@/lib/cup-season-utils'
 
 interface Squad { id: string; org_id: string; name: string; age_group: string }
 interface Organization { id: string; name: string; short_name: string }
@@ -64,42 +65,43 @@ export default function SquadDetailPage() {
         supabase.from('sb_games').select('id,season_id,home_squad_id,away_squad_id').or(`home_squad_id.eq.${squadId},away_squad_id.eq.${squadId}`),
         supabase.from('sb_players').select('id,name,number').eq('squad_id', squadId),
       ])
-      if (sqRes.data) {
-        setSquad(sqRes.data)
-        const orgRes = await supabase.from('sb_organizations').select('*').eq('id', sqRes.data.org_id).single()
-        if (orgRes.data) setOrg(orgRes.data)
-      }
+      if (sqRes.data) setSquad(sqRes.data)
+      if (rRes.data) setRosters(rRes.data)
+      if (pRes.data) setAllPlayers(pRes.data)
+
+      const allGameData = gRes.data ?? []
+      setAllGames(allGameData)
 
       const seasonIdSet = new Set<string>()
       if (ssRes.data) for (const r of ssRes.data) seasonIdSet.add(r.season_id)
-      const allGameData = gRes.data ?? []
       for (const g of allGameData) {
         if (g.season_id && (g.home_squad_id === squadId || g.away_squad_id === squadId)) {
           seasonIdSet.add(g.season_id)
         }
       }
-      setAllGames(allGameData)
-
-      if (seasonIdSet.size > 0) {
-        const sRes = await supabase.from('sb_seasons').select('*').in('id', [...seasonIdSet])
-        if (sRes.data) {
-          setSeasons(sRes.data)
-          const cupIds = [...new Set(sRes.data.map((s: Season) => s.cup_id))]
-          if (cupIds.length > 0) {
-            const cRes = await supabase.from('sb_cups').select('id,name,region').in('id', cupIds)
-            if (cRes.data) setCups(cRes.data)
-          }
-        }
-      }
-
-      if (rRes.data) setRosters(rRes.data)
-      if (pRes.data) setAllPlayers(pRes.data)
 
       const playerIds = pRes.data?.map((p: PlayerInfo) => p.id) ?? []
-      if (playerIds.length > 0) {
-        const statsRes = await supabase.from('sb_player_stats').select('*').in('player_id', playerIds)
-        if (statsRes.data) setAllStats(statsRes.data)
-      }
+      const orgId = sqRes.data?.org_id
+
+      // Phase 2: org, seasons-then-cups chain, and player stats can all run in parallel.
+      await Promise.all([
+        orgId
+          ? supabase.from('sb_organizations').select('*').eq('id', orgId).single().then((r) => r.data && setOrg(r.data))
+          : Promise.resolve(),
+        seasonIdSet.size > 0
+          ? supabase.from('sb_seasons').select('*').in('id', [...seasonIdSet]).then(async (sRes) => {
+              if (!sRes.data) return
+              setSeasons(sRes.data)
+              const cupIds = [...new Set(sRes.data.map((s: Season) => s.cup_id))]
+              if (cupIds.length === 0) return
+              const cRes = await supabase.from('sb_cups').select('id,name,region').in('id', cupIds)
+              if (cRes.data) setCups(cRes.data)
+            })
+          : Promise.resolve(),
+        playerIds.length > 0
+          ? supabase.from('sb_player_stats').select('*').in('player_id', playerIds).then((r) => r.data && setAllStats(r.data))
+          : Promise.resolve(),
+      ])
       setLoading(false)
     }
     load()
@@ -108,7 +110,7 @@ export default function SquadDetailPage() {
   // Aggregate per cup (sum across all seasons of the cup)
   const cupStats = useMemo(() => {
     const gameSeasonMap = new Map(allGames.map((g) => [g.id, g.season_id]))
-    const seasonCupMap = new Map(seasons.map((s) => [s.id, s.cup_id]))
+    const seasonCupMap = buildSeasonCupMap(seasons)
     const result = new Map<string, AggPlayer[]>()
 
     for (const cup of cups) {
