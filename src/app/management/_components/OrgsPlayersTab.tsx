@@ -37,6 +37,16 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
     setEditingOrg(null); toast('已儲存'); await reload()
   }
   const deleteOrg = async (id: string) => {
+    const org = orgs.find((o) => o.id === id)
+    const squadCount = squads.filter((s) => s.org_id === id).length
+    const playerCount = players.filter((p) => p.org_id === id).length
+    const parts = [`球隊「${org?.name}」`]
+    if (squadCount > 0) parts.push(`${squadCount} 個小隊`)
+    if (playerCount > 0) parts.push(`${playerCount} 位球員`)
+    const msg = parts.length > 1
+      ? `確定刪除 ${parts[0]}？\n會連帶刪除：${parts.slice(1).join('、')}\n(此操作無法復原)`
+      : `確定刪除 ${parts[0]}？`
+    if (!confirm(msg)) return
     await supabase.from('sb_organizations').delete().eq('id', id)
     if (selectedOrgId === id) { setSelectedOrgId(null); setSelectedSquadId(null); setSelectedPlayerId(null) }
     toast('已刪除'); await reload()
@@ -48,6 +58,14 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
     setEditingSquad(null); toast('已儲存'); await reload()
   }
   const deleteSquad = async (id: string) => {
+    const squad = squads.find((s) => s.id === id)
+    const memberCount = squadPlayerLinks.filter((sp) => sp.squad_id === id).length
+    const parts = [`小隊「${squad?.name}」`]
+    if (memberCount > 0) parts.push(`${memberCount} 位球員的小隊歸屬紀錄`)
+    const msg = parts.length > 1
+      ? `確定刪除 ${parts[0]}？\n會連帶刪除：${parts.slice(1).join('、')}\n(球員本身不會被刪除)`
+      : `確定刪除 ${parts[0]}？`
+    if (!confirm(msg)) return
     await supabase.from('sb_squads').delete().eq('id', id)
     if (selectedSquadId === id) setSelectedSquadId(null)
     toast('已刪除'); await reload()
@@ -60,6 +78,8 @@ export function OrgsPlayersTab({ data, reload, toast }: Props) {
     setEditingPlayer(null); toast('已儲存'); await reload()
   }
   const deletePlayer = async (id: string) => {
+    const player = players.find((p) => p.id === id)
+    if (!confirm(`確定刪除球員「${player?.name}」？\n所有比賽紀錄與名冊紀錄都會連帶刪除\n(此操作無法復原)`)) return
     await supabase.from('sb_players').delete().eq('id', id)
     if (selectedPlayerId === id) setSelectedPlayerId(null)
     toast('已刪除'); await reload()

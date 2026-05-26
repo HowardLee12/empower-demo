@@ -56,6 +56,10 @@ export function GamesTab({ data, reload, toast }: Props) {
   }
 
   const deleteGame = async (id: string) => {
+    const g = games.find((x) => x.id === id)
+    const label = g ? `${g.game_date} ${g.home_squad_name} vs ${g.away_squad_name}` : '此比賽'
+    const extra = g?.status === 'completed' ? '\n所有球員數據也會一併刪除' : ''
+    if (!confirm(`確定刪除比賽「${label}」？${extra}`)) return
     await supabase.from('sb_games').delete().eq('id', id)
     toast('已刪除'); await reload()
   }

@@ -117,7 +117,7 @@ export default function Home() {
 
   useEffect(() => {
     async function load() {
-      // Phase 1: load core data in parallel (no player stats yet)
+      // Phase 1: core layout data — render as soon as this lands.
       const [gRes, cRes, ssRes, oRes, sRes] = await Promise.all([
         supabase.from('sb_games').select('*').order('game_date', { ascending: true }),
         supabase.from('sb_cups').select('id,name,region,type').order('name'),
@@ -130,9 +130,9 @@ export default function Home() {
       if (ssRes.data) setSeasons(ssRes.data)
       if (oRes.data) setOrgs(oRes.data)
       if (sRes.data) setSquadOrgs(sRes.data)
+      setLoading(false) // unblock layout; stats section will render when it arrives
 
-      // Phase 2: load only player stats for homepage-season completed games.
-      // Avoids fetching every stat row in the DB as the dataset grows.
+      // Phase 2: stats for homepage seasons fire in the background.
       const homepageSeasonIds = new Set((ssRes.data ?? []).filter((s) => s.is_homepage).map((s) => s.id))
       const relevantGameIds = (gRes.data ?? [])
         .filter((g) => g.status === 'completed' && g.season_id && homepageSeasonIds.has(g.season_id))
@@ -144,7 +144,6 @@ export default function Home() {
           .in('game_id', relevantGameIds)
         if (psRes.data) setPlayerStats(psRes.data)
       }
-      setLoading(false)
     }
     load()
   }, [])

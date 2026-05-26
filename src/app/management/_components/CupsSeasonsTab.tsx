@@ -34,6 +34,19 @@ export function CupsSeasonsTab({ data, reload, toast }: Props) {
     setEditingCup(null); toast('已儲存'); await reload()
   }
   const deleteCup = async (id: string) => {
+    const cup = cups.find((c) => c.id === id)
+    const cupSeasonIds = seasons.filter((s) => s.cup_id === id).map((s) => s.id)
+    const seasonCount = cupSeasonIds.length
+    const rosterCount = seasonRosters.filter((r) => cupSeasonIds.includes(r.season_id)).length
+    const squadCount = seasonSquadLinks.filter((ss) => cupSeasonIds.includes(ss.season_id)).length
+    const parts = [`「${cup?.name}」`]
+    if (seasonCount > 0) parts.push(`${seasonCount} 個賽季`)
+    if (squadCount > 0) parts.push(`${squadCount} 個參賽隊伍紀錄`)
+    if (rosterCount > 0) parts.push(`${rosterCount} 筆名冊`)
+    const msg = parts.length > 1
+      ? `確定刪除 ${parts[0]}？\n會連帶刪除：${parts.slice(1).join('、')}\n(此操作無法復原)`
+      : `確定刪除 ${parts[0]}？`
+    if (!confirm(msg)) return
     await supabase.from('sb_cups').delete().eq('id', id)
     if (selectedCupId === id) { setSelectedCupId(null); setSelectedSeasonId(null); setSelectedSquadId(null) }
     toast('已刪除'); await reload()
@@ -49,6 +62,18 @@ export function CupsSeasonsTab({ data, reload, toast }: Props) {
     setEditingSeason(null); toast('已儲存'); await reload()
   }
   const deleteSeason = async (id: string) => {
+    const season = seasons.find((s) => s.id === id)
+    const squadCount = seasonSquadLinks.filter((ss) => ss.season_id === id).length
+    const rosterCount = seasonRosters.filter((r) => r.season_id === id).length
+    const gameCount = data.games.filter((g) => g.season_id === id).length
+    const parts = [`賽季「${season?.name}」`]
+    if (squadCount > 0) parts.push(`${squadCount} 個參賽隊伍`)
+    if (rosterCount > 0) parts.push(`${rosterCount} 筆名冊`)
+    if (gameCount > 0) parts.push(`${gameCount} 場比賽會變孤兒(season_id 設為空)`)
+    const msg = parts.length > 1
+      ? `確定刪除 ${parts[0]}？\n會連帶刪除：${parts.slice(1).join('、')}\n(此操作無法復原)`
+      : `確定刪除 ${parts[0]}？`
+    if (!confirm(msg)) return
     await supabase.from('sb_seasons').delete().eq('id', id)
     if (selectedSeasonId === id) { setSelectedSeasonId(null); setSelectedSquadId(null) }
     toast('已刪除'); await reload()
